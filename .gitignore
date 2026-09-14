@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Operating System Junk
+.DS_Store
+Thumbs.db
+
+# Model Checkpoints (Heavy binary files >100MB)
+*.pt
+*.bin
+*.onnx
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary outputs
+scratch/
+tmp/

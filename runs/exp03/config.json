@@ -1,0 +1,23 @@
+{
+    "batch_size": 64,
+    "block_size": 64,
+    "max_iters": 8000,
+    "eval_interval": 300,
+    "eval_iters": 50,
+    "learning_rate": 0.001,
+    "min_lr": 0.0001,
+    "warmup_iters": 400,
+    "weight_decay": 0.1,
+    "n_embd": 256,
+    "n_head": 8,
+    "n_layer": 6,
+    "dropout": 0.1,
+    "patience": 5,
+    "min_delta": 0.003,
+    "karpathy_val_target": 1.47,
+    "pos_emb_type": "absolute",
+    "top_k": 40,
+    "tokenizer": "char",
+    "exp_id": "exp03",
+    "device": "mps"
+}
