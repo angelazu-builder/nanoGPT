@@ -1,4 +1,8 @@
-# nanoGPT: Character-Level vs. Subword BPE
+# nanoGPT for N1 AI School
+
+This project is done in 3 days.
+
+[English](README.md) | [中文](README_CN.md)
 
 Decoder-only Transformer implementation and empirical comparison on Tiny Shakespeare (PyTorch / Apple Silicon MPS).
 
@@ -88,8 +92,8 @@ My lord, he is for the king, and vengeance for us.
 
 ### 1. Installation
 ```bash
-git clone https://github.com/angelazu-builder/nanoGPT-from-scratch.git
-cd nanoGPT-from-scratch
+git clone https://github.com/angelazu-builder/nanoGPT.git
+cd nanoGPT
 pip install torch tiktoken matplotlib
 ```
 
@@ -113,7 +117,8 @@ python3 compare_experiments.py
 ## 📂 Repository Layout
 
 ```text
-├── README.md                      # Project documentation and benchmarks
+├── README.md                      # English documentation & benchmarks
+├── README_CN.md                   # Chinese documentation & benchmarks
 ├── model.py                       # MiniTransformerLM architecture
 ├── train.py                       # Training loop, early stopping, and evaluation
 ├── config.py                      # Centralized hyperparameters
