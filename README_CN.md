@@ -1,6 +1,6 @@
-# nanoGPT (N1 AI School 专属版)
+# nanoGPT
 
-This project is done in 3 days. / 本项目在 3 天内完成。
+This project is done in 3 days for N1. / 本项目在 3 天内完成，专为 N1 打造。
 
 [English](README.md) | [中文](README_CN.md)
 
@@ -71,8 +71,6 @@ Second Murderer:
 'Zounds, he's a gentleman, a ballad and a church:
 My lord, he is for the king, and vengeance for us.
 ```
-
-![Model Championship Samples](results/model_championship_text_samples.png)
 
 ---
 
