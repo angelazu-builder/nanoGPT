@@ -18,6 +18,9 @@ Decoder-only Transformer implementation and empirical comparison on Tiny Shakesp
 
 ## 📊 Benchmarks & Comparison
 
+### 📈 Character-Level Context Window Expansion (`block=64` vs `block=256`)
+![Day 2 Character Scaling Benchmark](results/day2_char_scaling_benchmark.png)
+
 Losses across character and subword tokenizers are normalized via **Bits-Per-Character (BPC)**:
 
 $$\text{BPC} = \frac{\text{CrossEntropy Loss}}{\ln(2) \times \text{Compression Ratio}}$$
@@ -28,7 +31,7 @@ $$\text{BPC} = \frac{\text{CrossEntropy Loss}}{\ln(2) \times \text{Compression R
 | **`exp06`** | Character | 65 | 256 | Step 2100 | `1.4668` | **2.12 BPC** | ~1.2% | Expanded context window maintains verse rhythm. |
 | **`exp07`** | Subword BPE | 50,257 | 128 | Step 900 | `4.8475` | **2.12 BPC** | **0.0%** | **Best**. Zero non-words, dynamic multi-character dialogue. |
 
-### 📈 CrossEntropy Loss & BPC Comparison
+### 📈 Subword BPE vs Character-Level BPC Comparison
 ![BPC Comparison](results/bpe_vs_char_comparison.png)
 
 ---

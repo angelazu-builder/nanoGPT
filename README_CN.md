@@ -18,6 +18,9 @@ This project is done in 3 days for N1. / 本项目在 3 天内完成，专为 N1
 
 ## 📊 实验对比与基准
 
+### 📈 字符级上下文窗口扩容对比图 (`block=64` vs `block=256`)
+![Day 2 Character Scaling Benchmark](results/day2_char_scaling_benchmark.png)
+
 不同分词器之间的 Loss 统一通过 **Bits-Per-Character (BPC)** 进行标准化对比：
 
 $$\text{BPC} = \frac{\text{CrossEntropy Loss}}{\ln(2) \times \text{压缩率}}$$
@@ -28,7 +31,7 @@ $$\text{BPC} = \frac{\text{CrossEntropy Loss}}{\ln(2) \times \text{压缩率}}$$
 | **`exp06`** | 字符级 (Char) | 65 | 256 | Step 2100 | `1.4668` | **2.12 BPC** | ~1.2% | 扩容上下文维持律诗韵律。 |
 | **`exp07`** | 子词级 (BPE) | 50,257 | 128 | Step 900 | `4.8475` | **2.12 BPC** | **0.0%** | **最佳**。生造词率归零，多角色动态对白。 |
 
-### 📈 交叉熵 Loss 与 BPC 对比图
+### 📈 子词级 BPE vs 字符级 BPC 对比图
 ![BPC Comparison](results/bpe_vs_char_comparison.png)
 
 ---
