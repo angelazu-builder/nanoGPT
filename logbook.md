@@ -166,6 +166,14 @@
 - **Asset Migration**: Copied all key project PNG charts (`bpe_vs_char_comparison.png`, `day1_baseline_exploration.png`, `day2_char_scaling_benchmark.png`, `model_championship_text_samples.png`) into `results/`.
 - **Script Update**: Updated `compare_experiments.py` to auto-export future plots directly into `results/`.
 
+### Phase 33: Open-Source GitHub Repository Release & Push
+- **Repository Clean-Up**: Removed temporary draft files, relocated helper scripts to `scripts/`, configured `.gitignore`, and built a clean, plain-English `README.md` containing real learner reflections.
+- **GitHub Push**: Created public GitHub repository [`angelazu-builder/nanoGPT-from-scratch`](https://github.com/angelazu-builder/nanoGPT-from-scratch) and successfully pushed all commits to `main` branch.
+
+### Phase 34: Zero-Fluff Streamlining & README Refinement
+- **Fluff Elimination**: Stripped out marketing cliches ("from scratch", "hands-on exploration", "mini-transformer") from `README.md`.
+- **Commit & Push**: Committed and pushed the streamlined `README.md` to GitHub main branch.
+
 ---
 
 ## 👩‍🏫 User Supervision & Collaboration Record (监督与协作法则)
@@ -281,6 +289,16 @@
 28. **PNG Visual Asset Centralization in `results/` Mandate**:
     - Learner instructed: *"好的，好的，然后你把那几个 PNG 也放在这个 results 文件夹里面。"*.
     - Result: Consolidated all key PNG charts (`bpe_vs_char_comparison.png`, `day1_baseline_exploration.png`, `day2_char_scaling_benchmark.png`, `model_championship_text_samples.png`) into `results/` and updated `compare_experiments.py` for direct future export.
+
+29. **Honest & Plain-English GitHub Release Mandate**:
+    - Learner mandated: *"你来重新整理并push到github上去吧。注意避免丢一大堆意义不明的工业界buzzword. 清晰诚实靠谱是最高准则。"*.
+    - Result: Created public repository [`angelazu-builder/nanoGPT-from-scratch`](https://github.com/angelazu-builder/nanoGPT-from-scratch) with zero-buzzword plain-English documentation, real learner reflections, transparent BPC benchmark math, and clean code architecture.
+
+30. **Zero-Fluff & Marketing Phrase Elimination Mandate**:
+    - Learner commanded: *"把所有废话全部删掉，比如“from scratch"."*.
+    - Result: Stripped out all fluff, filler, and cliches (e.g. "from scratch", "hands-on exploration") from `README.md`. Pushed refined, ultra-concise documentation to GitHub `main` branch.
+
+
 
 
 
