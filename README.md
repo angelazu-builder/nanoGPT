@@ -1,42 +1,38 @@
-# 🧠 NanoGPT from Scratch: Character-Level vs. Subword BPE
+# nanoGPT: Character-Level vs. Subword BPE
 
-A hands-on implementation and empirical analysis of a Decoder-only Transformer language model built from scratch in PyTorch, trained on Tiny Shakespeare using Apple Silicon M3 GPU (`device='mps'`).
+Decoder-only Transformer implementation and empirical comparison on Tiny Shakespeare (PyTorch / Apple Silicon MPS).
 
 ---
 
-## 🎯 Motivation & Engineering Journey
-
-This project tracks a step-by-step 3-day exploration of building, debugging, and optimizing small language models from zero:
+## 📌 Implementation & Experiment Milestones
 
 > **Day 1 Reflection**:  
 > *"Day 1 Update: 小模型已能跑通。从统计指标上看已接近Karpathy的黄金基准，但实际生成质量仍差一档，有生造词。正在学习理论，理解问题，迭代超参等。"*
 
-- **Day 1 (Foundation)**: Implemented character tokenization ($V=65$), embedding layers, causal multi-head self-attention, GELU FeedForward networks, and AdamW optimizer. Added automatic early stopping (`min_delta=0.003, patience=5`) to prevent gradient overshoot.
-- **Day 2 (Scaling & Context Window)**: Scaled model to ~4.8M parameters ($d_{model}=256, l=6, h=8$). Expanded context window from `block_size=64` to `block_size=256`. Validation loss converged to **1.4922** (Perplexity 4.44), hitting Karpathy's 1.47 character-level benchmark target.
-- **Day 3 (Subword BPE & Memory Optimization)**: Integrated OpenAI's `tiktoken` (`gpt2` subword encoding, $V=50,257$) achieving 3.30x sequence compression. Diagnosed and resolved a 3.29GB single-step logits memory bottleneck on M3 GPU by re-configuring batch size to 32 and block size to 128 (16x memory reduction). Reduced non-word gibberish rate from 80.1% to **0.0%**, reaching **2.12 Bits-Per-Character (BPC)** normalized loss.
+- **Phase 1 (Baseline)**: Character tokenization ($V=65$), embedding layers, causal multi-head self-attention, GELU FeedForward networks, and AdamW optimizer with early stopping (`min_delta=0.003, patience=5`).
+- **Phase 2 (Scaling)**: Parameter scale-up to 4.8M ($d_{model}=256, l=6, h=8$). Context window expanded from `block_size=64` to `block_size=256`. Validation loss reached **1.4922** (PPL 4.44), matching Karpathy's 1.47 character-level target.
+- **Phase 3 (Subword BPE)**: Integrated OpenAI `tiktoken` (`gpt2`, $V=50,257$) with 3.30x sequence compression. Resolved 3.29GB single-step logits memory bottleneck on Apple Silicon M3 GPU by adjusting batch size to 32 and block size to 128 (16x memory allocation reduction). Achieved **2.12 Bits-Per-Character (BPC)** normalized loss and **0.0% non-word gibberish rate**.
 
 ---
 
-## 📊 Experimental Results & Benchmarks
+## 📊 Benchmarks & Comparison
 
-All completed experiment checkpoints are benchmarked below. Losses across different tokenizers are fairly normalized using **Bits-Per-Character (BPC)**:
+Losses across character and subword tokenizers are normalized via **Bits-Per-Character (BPC)**:
 
 $$\text{BPC} = \frac{\text{CrossEntropy Loss}}{\ln(2) \times \text{Compression Ratio}}$$
 
-| Milestone | Tokenizer | Vocab Size ($V$) | Context ($T$) | Best Step | Val Loss (Nats) | Normalized BPC | Gibberish Rate (%) | Key Observation |
+| Run | Tokenizer | Vocab Size ($V$) | Context ($T$) | Best Step | Val Loss (Nats) | Normalized BPC | Gibberish Rate (%) | Result |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`exp05`** | Character | 65 | 64 | Step 4500 | `1.4922` | **2.15 BPC** | ~1.5% | Reached Karpathy 1.47 baseline target; basic speaker tags. |
-| **`exp06`** | Character | 65 | 256 | Step 2100 | `1.4668` | **2.12 BPC** | ~1.2% | Expanded context window maintains sustained iambic verse. |
-| **`exp07`** | Subword BPE | 50,257 | 128 | Step 900 | `4.8475` | **2.12 BPC** | **0.0%** | **Winner**. Completely eliminated gibberish; dynamic dialogue. |
+| **`exp05`** | Character | 65 | 64 | Step 4500 | `1.4922` | **2.15 BPC** | ~1.5% | Reached Karpathy 1.47 baseline. |
+| **`exp06`** | Character | 65 | 256 | Step 2100 | `1.4668` | **2.12 BPC** | ~1.2% | Expanded context window maintains verse rhythm. |
+| **`exp07`** | Subword BPE | 50,257 | 128 | Step 900 | `4.8475` | **2.12 BPC** | **0.0%** | **Best**. Zero non-words, dynamic multi-character dialogue. |
 
-### 📈 CrossEntropy Loss & Fair BPC Comparison
+### 📈 CrossEntropy Loss & BPC Comparison
 ![BPC Comparison](results/bpe_vs_char_comparison.png)
 
 ---
 
-## 📖 Text Generation Quality Comparison
-
-Below are the exact generated outputs from the best checkpoint of each model stage:
+## 📖 Generated Text Output Samples
 
 ### 🔵 1. Character-Level Baseline (`exp05` | Step 4500 | Val Loss: 1.4922)
 ```text
@@ -58,7 +54,7 @@ To queen his discovery: the success shall be slain,
 For I will follow thee to death.
 ```
 
-### 🟠 3. Subword BPE Champion (`exp07` | Step 900 | 0.0% Gibberish)
+### 🟠 3. Subword BPE (`exp07` | Step 900 | 0.0% Gibberish)
 ```text
 ISABELLA:
 I pray you, go, sir; you are the first.
@@ -79,65 +75,57 @@ My lord, he is for the king, and vengeance for us.
 
 ---
 
-## 🛠️ Architecture Details
+## 🛠️ Implementation Details
 
-- **Attention Kernel**: PyTorch 2.0 `F.scaled_dot_product_attention` (MPS FlashAttention execution).
-- **Position Encoding**: Absolute learned position embeddings (optional RoPE support in `model.py`).
-- **Optimizer**: AdamW with decoupled weight decay (2D weight matrices decayed at 0.1, 1D biases and LayerNorms excluded).
-- **Learning Rate Schedule**: Linear warmup (400 steps) followed by Cosine Annealing down to $1\times 10^{-4}$.
+- **Attention Kernel**: PyTorch 2.0 `F.scaled_dot_product_attention` (MPS FlashAttention).
+- **Position Embedding**: Absolute learned position embeddings (RoPE supported in `model.py`).
+- **Optimizer**: AdamW with decoupled weight decay (2D weights decayed at 0.1, 1D biases/norms excluded).
+- **Learning Rate Schedule**: Linear warmup (400 steps) followed by Cosine Annealing to $1\times 10^{-4}$.
 
 ---
 
-## 🚀 Quickstart Guide
+## 🚀 Quickstart
 
-### 1. Requirements & Setup
+### 1. Installation
 ```bash
-git clone https://github.com/your-username/nanoGPT.git
-cd nanoGPT
+git clone https://github.com/angelazu-builder/nanoGPT-from-scratch.git
+cd nanoGPT-from-scratch
 pip install torch tiktoken matplotlib
 ```
 
-### 2. Interactive Terminal Playground (`chat.py`)
-Chat or generate text interactively using trained model checkpoints:
+### 2. Interactive CLI Playground
 ```bash
 python3 chat.py
 ```
 
-### 3. Train a Model Locally (`train.py`)
-Run training locally with real-time loss reporting, live text sampling, and automated early stopping:
+### 3. Training
 ```bash
 python3 train.py
 ```
 
-### 4. Plot Multi-Experiment Comparisons
-Regenerate loss curves and BPC comparison plots:
+### 4. Comparison Plotting
 ```bash
 python3 compare_experiments.py
 ```
 
 ---
 
-## 📂 Repository Structure
+## 📂 Repository Layout
 
 ```text
 ├── README.md                      # Project documentation and benchmarks
-├── model.py                       # MiniTransformerLM model definition
-├── train.py                       # Training loop, early stopping, and logging
-├── config.py                      # Centralized model hyperparameters
-├── chat.py                        # Interactive generation playground
-├── compare_experiments.py         # Multi-experiment loss plotter
-├── dataset.py                     # Character-level tokenizer pipeline
-├── dataset_bpe.py                 # Subword BPE tokenizer pipeline (tiktoken)
-├── eval_gibberish.py              # Dictionary audit tool for gibberish rate (%)
-├── eval.py                        # Perplexity & Distinct-2 evaluation suite
-├── input.txt                      # Tiny Shakespeare training corpus
-├── logbook.md                     # Full supervision & engineering logbook
-├── results/                       # Generated comparison plots & sample reports
-├── scripts/                       # Helper & visualization scripts
-└── Day 1 / Day 2 / Day 3         # Archived milestone experiment histories
+├── model.py                       # MiniTransformerLM architecture
+├── train.py                       # Training loop, early stopping, and evaluation
+├── config.py                      # Centralized hyperparameters
+├── chat.py                        # Interactive CLI playground
+├── compare_experiments.py         # Loss & BPC comparison plotter
+├── dataset.py                     # Character tokenizer dataset loader
+├── dataset_bpe.py                 # Subword BPE dataset loader (tiktoken)
+├── eval_gibberish.py              # Non-word rate audit tool
+├── eval.py                        # Perplexity and diversity evaluator
+├── input.txt                      # Tiny Shakespeare corpus
+├── logbook.md                     # Development logbook
+├── results/                       # Generated comparison plots and sample outputs
+├── scripts/                       # Helper scripts
+└── Day 1 / Day 2 / Day 3         # Archived milestone experiment outputs
 ```
-
----
-
-## 📜 Supervision & Engineering Record
-For a detailed step-by-step log of every hyperparameter iteration, theoretical diagnosis, and prompt supervision record, refer to [`logbook.md`](logbook.md).
