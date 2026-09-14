@@ -10,9 +10,6 @@ Decoder-only Transformer implementation and empirical comparison on Tiny Shakesp
 
 ## 📌 Implementation & Experiment Milestones
 
-> **Day 1 Reflection**:  
-> *"Day 1 Update: 小模型已能跑通。从统计指标上看已接近Karpathy的黄金基准，但实际生成质量仍差一档，有生造词。正在学习理论，理解问题，迭代超参等。"*
-
 - **Phase 1 (Baseline)**: Character tokenization ($V=65$), embedding layers, causal multi-head self-attention, GELU FeedForward networks, and AdamW optimizer with early stopping (`min_delta=0.003, patience=5`).
 - **Phase 2 (Scaling)**: Parameter scale-up to 4.8M ($d_{model}=256, l=6, h=8$). Context window expanded from `block_size=64` to `block_size=256`. Validation loss reached **1.4922** (PPL 4.44), matching Karpathy's 1.47 character-level target.
 - **Phase 3 (Subword BPE)**: Integrated OpenAI `tiktoken` (`gpt2`, $V=50,257$) with 3.30x sequence compression. Resolved 3.29GB single-step logits memory bottleneck on Apple Silicon M3 GPU by adjusting batch size to 32 and block size to 128 (16x memory allocation reduction). Achieved **2.12 Bits-Per-Character (BPC)** normalized loss and **0.0% non-word gibberish rate**.

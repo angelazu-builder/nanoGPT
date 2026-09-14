@@ -10,9 +10,6 @@ This project is done in 3 days. / 本项目在 3 天内完成。
 
 ## 📌 实验里程碑
 
-> **Day 1 思考记录**:  
-> *"Day 1 Update: 小模型已能跑通。从统计指标上看已接近Karpathy的黄金基准，但实际生成质量仍差一档，有生造词。正在学习理论，理解问题，迭代超参等。"*
-
 - **Phase 1 (基线搭建)**：字符级分词器 ($V=65$)、Embedding 层、因果多头自注意力机制、GELU 前馈网络，以及带自动早停机制（`min_delta=0.003, patience=5`）的 AdamW 优化器。
 - **Phase 2 (模型扩容)**：模型参数扩容至 4.8M ($d_{model}=256, l=6, h=8$)，上下文窗口从 `block_size=64` 扩大至 `256`。验证集损失收敛至 **1.4922**（困惑度 PPL 4.44），命中 Karpathy 1.47 字符级基准目标。
 - **Phase 3 (子词级 BPE)**：引入 OpenAI `tiktoken` (`gpt2` 子词编码，$V=50,257$)，实现 3.30 倍文本压缩。通过调整 Batch Size=32 和 Block Size=128（显存分配降低 16 倍），解决 Apple Silicon M3 GPU 上的 3.29GB 单步 Logits 显存瓶颈。实现 **2.12 Bits-Per-Character (BPC)** 归一化 Loss 和 **0.0% 生造词率**。
