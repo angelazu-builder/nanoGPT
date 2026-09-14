@@ -11,8 +11,8 @@ Decoder-only Transformer implementation and empirical comparison on Tiny Shakesp
 ## 📌 Implementation & Experiment Milestones
 
 - **Phase 1 (Baseline)**: Character tokenization ($V=65$), embedding layers, causal multi-head self-attention, GELU FeedForward networks, and AdamW optimizer with early stopping (`min_delta=0.003, patience=5`).
-- **Phase 2 (Scaling)**: Parameter scale-up to 4.8M ($d_{model}=256, l=6, h=8$). Context window expanded from `block_size=64` to `block_size=256`. Validation loss reached **1.4922** (PPL 4.44), matching Karpathy's 1.47 character-level target.
-- **Phase 3 (Subword BPE)**: Integrated OpenAI `tiktoken` (`gpt2`, $V=50,257$) with 3.30x sequence compression. Resolved 3.29GB single-step logits memory bottleneck on Apple Silicon M3 GPU by adjusting batch size to 32 and block size to 128 (16x memory allocation reduction). Achieved **2.12 Bits-Per-Character (BPC)** normalized loss and **0.0% non-word gibberish rate**.
+- **Phase 2 (Scaling)**: Parameter scale-up to 4.8M ($d_{model}=256, l=6, h=8$). Context window expanded from `block_size=64` to `block_size=256`. Validation loss reached **1.4922** in `exp05` (approaching Karpathy's ~1.47 character-level reference) and **1.4668** in `exp06` (approximately matching the ~1.47 reference).
+- **Phase 3 (Subword BPE)**: Integrated OpenAI `tiktoken` (`gpt2`, $V=50,257$) with 3.30x sequence compression. Resolved 3.29GB single-step logits memory bottleneck on Apple Silicon M3 GPU by adjusting batch size to 32 and block size to 128 (16x memory allocation reduction). Achieved **2.12 Bits-Per-Character (BPC)** normalized loss (matching Char-256) and a **0.0% non-word rate** (dictionary lexical validity from subword vocabulary; semantic incoherence persists).
 
 ---
 
@@ -25,11 +25,16 @@ Losses across character and subword tokenizers are normalized via **Bits-Per-Cha
 
 $$\text{BPC} = \frac{\text{CrossEntropy Loss}}{\ln(2) \times \text{Compression Ratio}}$$
 
-| Run | Tokenizer | Vocab Size ($V$) | Context ($T$) | Best Step | Val Loss (Nats) | Normalized BPC | Gibberish Rate (%) | Result |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`exp05`** | Character | 65 | 64 | Step 4500 | `1.4922` | **2.15 BPC** | ~1.5% | Reached Karpathy 1.47 baseline. |
-| **`exp06`** | Character | 65 | 256 | Step 2100 | `1.4668` | **2.12 BPC** | ~1.2% | Expanded context window maintains verse rhythm. |
-| **`exp07`** | Subword BPE | 50,257 | 128 | Step 900 | `4.8475` | **2.12 BPC** | **0.0%** | **Best**. Zero non-words, dynamic multi-character dialogue. |
+| Run | Tokenizer | Vocab ($V$) | Config ($B \times T$) | Best Step | Chars Seen | Val Loss (Nats) | Normalized BPC | Non-word Rate (%) | Result / Assessment |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`exp05`** | Character | 65 | 64 × 64 | Step 4500 | 18.4M | `1.4922` | **2.15 BPC** | ~1.5% | Approached Karpathy ~1.47 reference. |
+| **`exp06`** | Character | 65 | 64 × 256 | Step 2100 | 34.4M | `1.4668` | **2.12 BPC** | ~1.2% | Reached Karpathy ~1.47 reference; expanded context maintains verse rhythm. |
+| **`exp07`** | Subword BPE | 50,257 | 32 × 128 | Step 900 | 12.2M | `4.8475` | **2.12 BPC** | **0.0%** | BPC comparable to Char-256 (2.12); best qualitative lexical validity (0% non-words). |
+
+> [!NOTE]
+> **Methodological & Budget Notes**:
+> 1. **Compute & Data Exposure**: Runs vary in batch size ($B$), context length ($T$), and total characters exposed (18.4M, 34.4M, and 12.2M characters seen). Results reflect **best validation loss under early stopping**, not compute-matched sample efficiency.
+> 2. **Lexical Validity vs. Semantics**: The `0.0%` Non-word Rate in BPE measures dictionary word validity (subword tokens form valid words). It does **not** imply flawless grammar or semantic coherence—syntactic and semantic nonsense remains present in generated samples.
 
 ### 📈 Subword BPE vs Character-Level BPC Comparison
 ![BPC Comparison](results/bpe_vs_char_comparison.png)

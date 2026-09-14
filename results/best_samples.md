@@ -8,7 +8,7 @@ This document gathers the **exact generated text samples** corresponding to the 
 - **Best Step**: Step 4500
 - **Validation Loss**: `1.4922`
 - **Normalized BPC**: `2.15 BPC`
-- **Gibberish Rate**: `~1.5%`
+- **Non-word Rate**: `~1.5%`
 
 ```text
 ISABELLA:
@@ -27,7 +27,7 @@ But leave me to the world.
 - **Best Step**: Step 2100
 - **Validation Loss**: `1.4668`
 - **Normalized BPC**: `2.12 BPC`
-- **Gibberish Rate**: `~1.2%`
+- **Non-word Rate**: `~1.2%`
 
 ```text
 All mistress with falsehood and lightnings and regreet
@@ -39,11 +39,11 @@ For I will follow thee to death.
 
 ---
 
-## 🟠 3. exp07: Subword BPE Champion (`block_size=128`, $V=50,257$)
+## 🟠 3. exp07: Subword BPE (`block_size=128`, $V=50,257$)
 - **Best Step**: Step 900
 - **Validation Loss**: `4.8475` (Nats)
-- **Normalized BPC**: `2.12 BPC` (Winner 🏆)
-- **Gibberish Rate**: `0.0%` (Zero non-words!)
+- **Normalized BPC**: `2.12 BPC` (Equal BPC to exp06)
+- **Non-word Rate**: `0.0%` (Subword vocabulary guarantees valid dictionary words; semantic incoherence persists)
 
 ```text
 ISABELLA:

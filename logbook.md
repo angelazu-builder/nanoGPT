@@ -310,6 +310,14 @@
     - Learner commanded: *"@[/Users/angela/Desktop/Angela's nanoGPT/Day 2/day2_char_scaling_benchmark.png] 这个很重要，放进readme第一张图。"*.
     - Result: Embedded `results/day2_char_scaling_benchmark.png` as the primary first figure in both `README.md` and `README_CN.md`, ensuring character-level scaling ($T=64$ vs $T=256$) is highlighted before subword BPC comparison.
 
+34. **Empirical Methodological Refinements (Non-word Rate & Budget Nuance)**:
+    - Learner provided 4 critical empirical corrections:
+      1. **No Over-claiming `exp07` as "Best"**: `exp07` and `exp06` share equal $2.12\text{ BPC}$. Re-labeled `exp07` to *"BPC comparable to Char-256 (2.12); best qualitative lexical validity"*.
+      2. **Metric Renaming (`Non-word Rate`)**: Renamed *Gibberish Rate* $\to$ *Non-word Rate*. Clarified that $0.0\%$ non-word rate guarantees subword dictionary validity but does not imply flawless syntax or semantics.
+      3. **Compute / Data Exposure Transparency**: Added `Config ($B \times T$)` and `Chars Seen` columns (18.4M vs 34.4M vs 12.2M chars) to benchmark tables alongside a dedicated *Methodological & Budget Note*.
+      4. **Karpathy ~1.47 Reference Terminology**: Replaced "target" with "reference (~1.47)". Clarified `exp05` (1.4922) *approached* the reference, while `exp06` (1.4668) *reached/matched* it.
+
+
 
 
 

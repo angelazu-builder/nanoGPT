@@ -60,7 +60,7 @@ if exp05 and exp06 and exp07:
     ax1.plot(exp06["data"]["steps"], exp06["data"]["val_loss"], label="exp06: Char (block=256, V=65)", color="#2ca02c", linewidth=2.2)
     ax1.plot(exp07["data"]["steps"], exp07["data"]["val_loss"], label="exp07: Subword BPE (block=128, V=50k)", color="#ff7f0e", linewidth=2.5)
 
-    ax1.axhline(y=1.47, color="green", linestyle="--", linewidth=1.5, label="Karpathy Target (1.47)")
+    ax1.axhline(y=1.47, color="green", linestyle="--", linewidth=1.5, label="Karpathy Reference (~1.47)")
     ax1.set_xlabel("Training Steps", fontsize=11)
     ax1.set_ylabel("Validation Loss (Nats)", fontsize=11)
     ax1.set_title("(A) Raw CrossEntropy Loss", fontsize=12, fontweight="bold")
@@ -76,9 +76,9 @@ if exp05 and exp06 and exp07:
 
     ax2.plot(exp05["data"]["steps"], bpc_05, label="exp05: Char (2.15 BPC)", color="#1f77b4", linewidth=2.2)
     ax2.plot(exp06["data"]["steps"], bpc_06, label="exp06: Char Expanded (2.12 BPC)", color="#2ca02c", linewidth=2.2)
-    ax2.plot(exp07["data"]["steps"], bpc_07, label="exp07: BPE Winner (2.12 BPC)", color="#ff7f0e", linewidth=2.5)
+    ax2.plot(exp07["data"]["steps"], bpc_07, label="exp07: BPE Subword (2.12 BPC)", color="#ff7f0e", linewidth=2.5)
 
-    ax2.axhline(y=1.47/math.log(2), color="green", linestyle="--", linewidth=1.5, label="Karpathy Target (2.12 BPC)")
+    ax2.axhline(y=1.47/math.log(2), color="green", linestyle="--", linewidth=1.5, label="Karpathy Reference (2.12 BPC)")
     ax2.set_xlabel("Training Steps", fontsize=11)
     ax2.set_ylabel("Normalized Loss (Bits-Per-Character / BPC)", fontsize=11)
     ax2.set_title("(B) Fair BPC Information Density", fontsize=12, fontweight="bold")
