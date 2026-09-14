@@ -306,18 +306,9 @@
     - Learner commanded: *"把readme里samples coparison的截图png删掉。标题里不要出现for N1 ai school, readme里才出现“This project is done in 3 days for N1"*.
     - Result: Simplified main title to `# nanoGPT`, set subtitle to `This project is done in 3 days for N1.`, removed redundant PNG sample embeds from both READMEs, and pushed updated clean documentation to GitHub `main` branch.
 
-
-
-
-
-
-
-
-
-
-
-
-
+33. **Primary Benchmark Image Embedding Mandate**:
+    - Learner commanded: *"@[/Users/angela/Desktop/Angela's nanoGPT/Day 2/day2_char_scaling_benchmark.png] 这个很重要，放进readme第一张图。"*.
+    - Result: Embedded `results/day2_char_scaling_benchmark.png` as the primary first figure in both `README.md` and `README_CN.md`, ensuring character-level scaling ($T=64$ vs $T=256$) is highlighted before subword BPC comparison.
 
 
 
