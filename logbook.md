@@ -302,6 +302,11 @@
     - Learner commanded: *"哦对了，reflection删掉，就是day 1 update那个，中英版本里都要删。"*.
     - Result: Removed Day 1 Reflection quote block from both `README.md` and `README_CN.md`, and pushed updated clean documentation to GitHub `main` branch.
 
+32. **Title & N1 School Subtitle Precision Mandate**:
+    - Learner commanded: *"把readme里samples coparison的截图png删掉。标题里不要出现for N1 ai school, readme里才出现“This project is done in 3 days for N1"*.
+    - Result: Simplified main title to `# nanoGPT`, set subtitle to `This project is done in 3 days for N1.`, removed redundant PNG sample embeds from both READMEs, and pushed updated clean documentation to GitHub `main` branch.
+
+
 
 
 
