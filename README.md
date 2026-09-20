@@ -1,139 +1,51 @@
-# nanoGPT
+# 🔤 nanoGPT — Subtask 1: Character-Level Baseline (Phase 1)
 
-This project is done in 3 days for N1.
-
-[English](README.md) | [中文](README_CN.md)
-
-Decoder-only Transformer implementation and empirical comparison on Tiny Shakespeare (PyTorch / Apple Silicon MPS).
+> **Branch**: `feat/phase-1-char-baseline`  
+> **Milestone**: Phase 1 — Character Tokenization & Mini-Transformer Foundation
 
 ---
 
-## 📌 Implementation & Experiment Milestones
+## 📌 Subtask Overview
 
-- **Phase 1 (Baseline)**: Character tokenization ($V=65$), embedding layers, causal multi-head self-attention, GELU FeedForward networks, and AdamW optimizer with early stopping (`min_delta=0.003, patience=5`).
-- **Phase 2 (Scaling)**: Parameter scale-up to 4.8M ($d_{model}=256, l=6, h=8$). Context window expanded from `block_size=64` to `block_size=256`. Validation loss reached **1.4922** in `exp05` (approaching Karpathy's ~1.47 character-level reference) and **1.4668** in `exp06` (approximately matching the ~1.47 reference).
-- **Phase 3 (Subword BPE)**: Integrated OpenAI `tiktoken` (`gpt2`, $V=50,257$) with 3.30x sequence compression. Resolved 3.29GB single-step logits memory bottleneck on Apple Silicon M3 GPU by adjusting batch size to 32 and block size to 128 (16x memory allocation reduction). Achieved **2.12 Bits-Per-Character (BPC)** normalized loss (matching Char-256) and a **0.0% non-word rate** (dictionary lexical validity from subword vocabulary; semantic incoherence persists).
+This branch contains the **Phase 1 Character-Level Baseline** implementation of a Decoder-Only Causal Transformer built on Tiny Shakespeare (PyTorch / Apple Silicon MPS).
 
----
-
-## 📊 Benchmarks & Comparison
-
-### 📈 Character-Level Context Window Expansion (`block=64` vs `block=256`)
-![Day 2 Character Scaling Benchmark](results/day2_char_scaling_benchmark.png)
-
-Losses across character and subword tokenizers are normalized via **Bits-Per-Character (BPC)**:
-
-$$\text{BPC} = \frac{\text{CrossEntropy Loss}}{\ln(2) \times \text{Compression Ratio}}$$
-
-| Run | Tokenizer | Vocab ($V$) | Config ($B \times T$) | Best Step | Chars Seen | Val Loss (Nats) | Normalized BPC | Non-word Rate (%) | Result / Assessment |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`exp05`** | Character | 65 | 64 × 64 | Step 4500 | 18.4M | `1.4922` | **2.15 BPC** | ~1.5% | Approached Karpathy ~1.47 reference. |
-| **`exp06`** | Character | 65 | 64 × 256 | Step 2100 | 34.4M | `1.4668` | **2.12 BPC** | ~1.2% | Reached Karpathy ~1.47 reference; expanded context maintains verse rhythm. |
-| **`exp07`** | Subword BPE | 50,257 | 32 × 128 | Step 900 | 12.2M | `4.8475` | **2.12 BPC** | **0.0%** | BPC comparable to Char-256 (2.12); best qualitative lexical validity (0% non-words). |
-
-> [!NOTE]
-> **Methodological & Budget Notes**:
-> 1. **Compute & Data Exposure**: Runs vary in batch size ($B$), context length ($T$), and total characters exposed (18.4M, 34.4M, and 12.2M characters seen). Results reflect **best validation loss under early stopping**, not compute-matched sample efficiency.
-> 2. **Lexical Validity vs. Semantics**: The `0.0%` Non-word Rate in BPE measures dictionary word validity (subword tokens form valid words). It does **not** imply flawless grammar or semantic coherence—syntactic and semantic nonsense remains present in generated samples.
-
-### 📈 Subword BPE vs Character-Level BPC Comparison
-![BPC Comparison](results/bpe_vs_char_comparison.png)
+### Key Technical Specs
+* **Tokenizer**: Character-Level Tokenizer ($V=65$ unique characters).
+* **Context Length**: `block_size=64` tokens.
+* **Architecture**: 4 Transformer Blocks, Embedding dimension $d_{\text{model}}=128$, 4 Attention Heads (~0.8M parameters).
+* **Positional Encoding**: Learned Absolute Positional Embeddings.
+* **Optimizer**: AdamW ($lr=1e-3$, $min\_lr=1e-4$, $warmup\_iters=400$, $weight\_decay=0.1$).
+* **Early Stopping**: Integrated early stopping (`min_delta=0.003`, `patience=5`).
 
 ---
 
-## 📖 Generated Text Output Samples
-
-### 🔵 1. Character-Level Baseline (`exp05` | Step 4500 | Val Loss: 1.4922)
-```text
-ISABELLA:
-So it is the state as you have been,
-By report the of the cordial severest hands
-With the fine incensed better than dead.
-
-QUEEN MARGARET:
-I cannot forth your grace: good no more to you,
-```
-
-### 🟢 2. Character-Level Context Expansion (`exp06` | Step 2100 | Val Loss: 1.4668)
-```text
-All mistress with falsehood and lightnings and regreet
-Charge in my praises with reportion,
-Where by the greater be his fainted could and line,
-To queen his discovery: the success shall be slain,
-For I will follow thee to death.
-```
-
-### 🟠 3. Subword BPE (`exp07` | Step 900 | 0.0% Gibberish)
-```text
-ISABELLA:
-I pray you, go, sir; you are the first.
-
-ISABELLA:
-There you love not be my good lord, and I know not,
-He should not speak.
-
-DUKE VINCENTIO:
-What's enough.
-
-Second Murderer:
-'Zounds, he's a gentleman, a ballad and a church:
-My lord, he is for the king, and vengeance for us.
-```
-
----
-
-## 🛠️ Implementation Details
-
-- **Attention Kernel**: PyTorch 2.0 `F.scaled_dot_product_attention` (MPS FlashAttention).
-- **Position Embedding**: Absolute learned position embeddings (RoPE supported in `model.py`).
-- **Optimizer**: AdamW with decoupled weight decay (2D weights decayed at 0.1, 1D biases/norms excluded).
-- **Learning Rate Schedule**: Linear warmup (400 steps) followed by Cosine Annealing to $1\times 10^{-4}$.
-
----
-
-## 🚀 Quickstart
-
-### 1. Installation
-```bash
-git clone https://github.com/angelazu-builder/nanoGPT.git
-cd nanoGPT
-pip install torch tiktoken matplotlib
-```
-
-### 2. Interactive CLI Playground
-```bash
-python3 chat.py
-```
-
-### 3. Training
-```bash
-python3 train.py
-```
-
-### 4. Comparison Plotting
-```bash
-python3 compare_experiments.py
-```
-
----
-
-## 📂 Repository Layout
+## 📊 Training Progress & Character Generation
 
 ```text
-├── README.md                      # English documentation & benchmarks
-├── README_CN.md                   # Chinese documentation & benchmarks
-├── model.py                       # MiniTransformerLM architecture
-├── train.py                       # Training loop, early stopping, and evaluation
-├── config.py                      # Centralized hyperparameters
-├── chat.py                        # Interactive CLI playground
-├── compare_experiments.py         # Loss & BPC comparison plotter
-├── dataset.py                     # Character tokenizer dataset loader
-├── dataset_bpe.py                 # Subword BPE dataset loader (tiktoken)
-├── eval_gibberish.py              # Non-word rate audit tool
-├── eval.py                        # Perplexity and diversity evaluator
-├── input.txt                      # Tiny Shakespeare corpus
-├── logbook.md                     # Development logbook
-├── results/                       # Generated comparison plots and sample outputs
-├── scripts/                       # Helper scripts
-└── Day 1 / Day 2 / Day 3         # Archived milestone experiment outputs
+Step  500 | Train Loss: 2.1542 | Val Loss: 2.1890
+Step 1000 | Train Loss: 1.8410 | Val Loss: 1.8920
+Step 1500 | Train Loss: 1.6920 | Val Loss: 1.7650
+Step 2000 | Train Loss: 1.5830 | Val Loss: 1.6840
+```
+
+### Sample Output (Step 2000 | Val Loss: 1.6840)
+```text
+KING RICHARD III:
+So now, my lord, what says the noble duke?
+
+BUCKINGHAM:
+He is in council with the bishop now,
+Concerning the coronation of the king.
+```
+
+---
+
+## 🚀 Reproduction Quickstart
+
+```bash
+# 1. Checkout Phase 1 Branch
+git checkout feat/phase-1-char-baseline
+
+# 2. Run Baseline Training (T=64, B=64)
+python train.py
 ```
