@@ -82,7 +82,7 @@ class CausalSelfAttention(nn.Module):
         if pos_emb_type == "rope":
             self.rotary_emb = RotaryEmbedding(self.head_size, max_position_embeddings=block_size)
 
-    def forward(self, x):
+    def forward(self, x, return_diagnostics=False):
         B, T, C = x.shape # batch size, sequence length, embedding dimensionality (n_embd)
 
         # Compute query, key, values for all heads in batch and move head forward to be the batch dim
@@ -94,6 +94,15 @@ class CausalSelfAttention(nn.Module):
         if self.pos_emb_type == "rope":
             cos, sin = self.rotary_emb(v, seq_len=T)
             q, k = apply_rotary_pos_emb(q, k, cos, sin)
+
+        if return_diagnostics:
+            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(self.head_size))
+            mask = torch.triu(torch.full((T, T), float('-inf'), device=x.device), diagonal=1)
+            att = att + mask
+            att_weights = F.softmax(att, dim=-1)
+            y = att_weights @ v
+            y = y.transpose(1, 2).contiguous().view(B, T, C)
+            return self.resid_dropout(self.c_proj(y)), att_weights
 
         # PyTorch 2.0 Scaled Dot-Product Attention (FlashAttention kernel under the hood)
         y = F.scaled_dot_product_attention(
@@ -129,7 +138,12 @@ class TransformerBlock(nn.Module):
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
-    def forward(self, x):
+    def forward(self, x, return_diagnostics=False):
+        if return_diagnostics:
+            sa_out, att_weights = self.sa(self.ln1(x), return_diagnostics=True)
+            x = x + sa_out
+            x = x + self.ffwd(self.ln2(x))
+            return x, att_weights
         x = x + self.sa(self.ln1(x))
         x = x + self.ffwd(self.ln2(x))
         return x
@@ -142,7 +156,7 @@ class MiniTransformerLM(nn.Module):
         self.block_size = block_size
         self.pos_emb_type = pos_emb_type
         self.embedding = MiniEmbedding(vocab_size, n_embd, block_size, dropout, pos_emb_type)
-        self.blocks = nn.Sequential(*[
+        self.blocks = nn.ModuleList([
             TransformerBlock(n_embd, n_head, block_size, dropout, pos_emb_type) for _ in range(n_layer)
         ])
         self.ln_f = nn.LayerNorm(n_embd)
@@ -159,18 +173,38 @@ class MiniTransformerLM(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, idx, targets=None):
+    def forward(self, idx, targets=None, return_diagnostics=False):
         B, T = idx.shape
         x = self.embedding(idx) # (B, T, n_embd)
-        x = self.blocks(x)      # (B, T, n_embd)
+
+        if return_diagnostics:
+            layer_hiddens = []
+            att_matrices = []
+            for block in self.blocks:
+                layer_hiddens.append(x)
+                x, att = block(x, return_diagnostics=True)
+                att_matrices.append(att)
+            x = self.ln_f(x)
+            layer_hiddens.append(x)
+            logits = self.lm_head(x)
+            loss = None
+            if targets is not None:
+                B, T, C = logits.shape
+                logits_flat = logits.reshape(B * T, C)
+                targets_flat = targets.reshape(B * T)
+                loss = F.cross_entropy(logits_flat, targets_flat)
+            return logits, loss, layer_hiddens, att_matrices
+
+        for block in self.blocks:
+            x = block(x)
         x = self.ln_f(x)        # (B, T, n_embd)
         logits = self.lm_head(x) # (B, T, vocab_size)
 
         loss = None
         if targets is not None:
             B, T, C = logits.shape
-            logits_flat = logits.view(B * T, C)
-            targets_flat = targets.view(B * T)
+            logits_flat = logits.reshape(B * T, C)
+            targets_flat = targets.reshape(B * T)
             loss = F.cross_entropy(logits_flat, targets_flat)
 
         return logits, loss
