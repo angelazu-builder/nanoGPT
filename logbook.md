@@ -317,6 +317,24 @@
       3. **Compute / Data Exposure Transparency**: Added `Config ($B \times T$)` and `Chars Seen` columns (18.4M vs 34.4M vs 12.2M chars) to benchmark tables alongside a dedicated *Methodological & Budget Note*.
       4. **Karpathy ~1.47 Reference Terminology**: Replaced "target" with "reference (~1.47)". Clarified `exp05` (1.4922) *approached* the reference, while `exp06` (1.4668) *reached/matched* it.
 
+35. **Transformer Training Dynamics Formulation & Literature Alignment**:
+    - Learner/Colleague proposed investigating whether context length sequence order alters Transformer optimization trajectories or creates local shortcut traps.
+    - Cites Dong et al. (ICML 2021) Rank Collapse Theorem, Noci et al. (NeurIPS 2022) Signal Propagation, Press et al. (ACL 2021) Shortformer, Li et al. (2021) Sequence Length Warmup, McCandlish et al. (2018) Large-Batch Noise Scale, Bengio et al. (2009) Curriculum Learning, and Yao et al. (2024) Long-Context Evaluation. Formulated double-sided hypotheses ($H_{\text{main}}$ optimization continuation vs $H_{\text{alt}}$ local shortcut trap).
+
+36. **Pre-training Diagnostic Probes Execution (`corpus_probe.py` & `gradient_probe.py`)**:
+    - Executed `corpus_probe.py` to analyze character-level conditional entropy across lags $k \in [1, 256]$.
+    - Executed `gradient_probe.py` at Step 0 under $B \times T = 4096$. Verified total parameter gradient variance $\text{Tr}(\Sigma)$ increases monotonically from `0.8383` ($T=32$) to `1.6328` ($T=256$), empirically validating that short initial sequences damp early optimization noise by 48.6%.
+
+37. **4-Arm Controlled Curriculum Training Experiment & 8-Panel Dashboard (`experiment_curriculum.py`)**:
+    - Executed 4 controlled arms under 10.24M tokens budget and fixed seed 42 (`Curriculum`, `Shuffled Control`, `Anti-Curriculum`, `Fixed-Long Baseline`).
+    - Key Empirical Findings: Curriculum achieved highest Effective Representation Rank ($\text{Rank}_{\text{eff}}=140.79$ vs $131.75$ for Fixed-Long) and sharpest Attention Entropy ($\bar{\mathcal{H}}=0.2975$ vs $0.5038$), preventing rank collapse. Anti-Curriculum suffered severe $+0.17$ BPC degradation.
+    - Generated 8-panel Theory-Computation-Experiment cross-validation dashboard (`results/theory_computation_experiment_dashboard.png`) and comprehensive Technical Report ([`research/technical_report.md`](file:///Users/angela/Desktop/Angela's%20nanoGPT/research/technical_report.md)).
+
+38. **Multi-Branch Subtask Repository Architecture & Remote Git Sync**:
+    - Learner instructed to reorganize repo into milestone feature branches with dedicated README visual embeds.
+    - Created and pushed 4 feature branches (`feat/phase-1-char-baseline`, `feat/phase-2-char-scaling`, `feat/phase-3-subword-bpe`, `feat/phase-4-training-dynamics`) and updated `main` branch with a Multi-Branch Navigation Matrix table, directory tree, visual asset embeds, and clean quickstart commands.
+
+
 
 
 
