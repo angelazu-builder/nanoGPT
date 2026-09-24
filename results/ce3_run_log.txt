@@ -1,0 +1,36 @@
+
+=================================================================
+CE-3: Paired Batch Manifest — 5 Seeds × 4 Arms
+Device: mps
+=================================================================
+
+train_data_len=1003854, val_data_len=111540
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SEED 42
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Manifest generated (seed=42): ['T=32:80000 indices', 'T=64:40000 indices', 'T=128:20000 indices', 'T=256:40000 indices']
+
+  ── Arm: Curriculum (32→256) (seed=42) [CACHED, skipping] ──
+  ⚡ Curriculum (32→256) loaded from cache: final_bpc=2.20083
+
+  ── Arm: Shuffled Control (seed=42) [CACHED, skipping] ──
+  ⚡ Shuffled Control loaded from cache: final_bpc=2.21559
+
+  ── Arm: Anti-Curriculum (256→32) (seed=42) [CACHED, skipping] ──
+  ⚡ Anti-Curriculum (256→32) loaded from cache: final_bpc=2.34740
+
+  ── Arm: Fixed-Long Baseline (256) (seed=42) ──
+  ✅ Fixed-Long Baseline (256) done: final_bpc=2.18563
+
+  Saved seed-42 results → results/ce3_paired/seed_42_results.json
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SEED 43
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Manifest generated (seed=43): ['T=32:80000 indices', 'T=64:40000 indices', 'T=128:20000 indices', 'T=256:40000 indices']
+
+  ── Arm: Curriculum (32→256) (seed=43) ──
+  ✅ Curriculum (32→256) done: final_bpc=2.15622
+
+  ── Arm: Shuffled Control (seed=43) ──
