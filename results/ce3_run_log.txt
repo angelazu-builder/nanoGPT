@@ -34,3 +34,91 @@ Manifest generated (seed=43): ['T=32:80000 indices', 'T=64:40000 indices', 'T=12
   ✅ Curriculum (32→256) done: final_bpc=2.15622
 
   ── Arm: Shuffled Control (seed=43) ──
+  ✅ Shuffled Control done: final_bpc=2.17875
+
+  ── Arm: Anti-Curriculum (256→32) (seed=43) ──
+  ✅ Anti-Curriculum (256→32) done: final_bpc=2.36902
+
+  ── Arm: Fixed-Long Baseline (256) (seed=43) ──
+  ✅ Fixed-Long Baseline (256) done: final_bpc=2.16541
+
+  Saved seed-43 results → results/ce3_paired/seed_43_results.json
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SEED 44
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Manifest generated (seed=44): ['T=32:80000 indices', 'T=64:40000 indices', 'T=128:20000 indices', 'T=256:40000 indices']
+
+  ── Arm: Curriculum (32→256) (seed=44) ──
+  ✅ Curriculum (32→256) done: final_bpc=2.02701
+
+  ── Arm: Shuffled Control (seed=44) ──
+  ✅ Shuffled Control done: final_bpc=2.02155
+
+  ── Arm: Anti-Curriculum (256→32) (seed=44) ──
+  ✅ Anti-Curriculum (256→32) done: final_bpc=2.21864
+
+  ── Arm: Fixed-Long Baseline (256) (seed=44) ──
+  ✅ Fixed-Long Baseline (256) done: final_bpc=2.02228
+
+  Saved seed-44 results → results/ce3_paired/seed_44_results.json
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SEED 45
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Manifest generated (seed=45): ['T=32:80000 indices', 'T=64:40000 indices', 'T=128:20000 indices', 'T=256:40000 indices']
+
+  ── Arm: Curriculum (32→256) (seed=45) ──
+  ✅ Curriculum (32→256) done: final_bpc=2.07667
+
+  ── Arm: Shuffled Control (seed=45) ──
+  ✅ Shuffled Control done: final_bpc=2.07573
+
+  ── Arm: Anti-Curriculum (256→32) (seed=45) ──
+  ✅ Anti-Curriculum (256→32) done: final_bpc=2.24965
+
+  ── Arm: Fixed-Long Baseline (256) (seed=45) ──
+  ✅ Fixed-Long Baseline (256) done: final_bpc=2.09732
+
+  Saved seed-45 results → results/ce3_paired/seed_45_results.json
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SEED 46
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Manifest generated (seed=46): ['T=32:80000 indices', 'T=64:40000 indices', 'T=128:20000 indices', 'T=256:40000 indices']
+
+  ── Arm: Curriculum (32→256) (seed=46) ──
+  ✅ Curriculum (32→256) done: final_bpc=2.13027
+
+  ── Arm: Shuffled Control (seed=46) ──
+  ✅ Shuffled Control done: final_bpc=2.11618
+
+  ── Arm: Anti-Curriculum (256→32) (seed=46) ──
+  ✅ Anti-Curriculum (256→32) done: final_bpc=2.29474
+
+  ── Arm: Fixed-Long Baseline (256) (seed=46) ──
+  ✅ Fixed-Long Baseline (256) done: final_bpc=2.11495
+
+  Saved seed-46 results → results/ce3_paired/seed_46_results.json
+
+=================================================================
+CE-3 FINAL SUMMARY (across 5 paired seeds)
+=================================================================
+
+Arm                                   Mean BPC    Std BPC      Min      Max
+---------------------------------------------------------------------------
+Curriculum (32→256)                    2.11820    0.06793  2.02701  2.20083
+Shuffled Control                       2.12156    0.07785  2.02155  2.21559
+Anti-Curriculum (256→32)               2.29589    0.06346  2.21864  2.36902
+Fixed-Long Baseline (256)              2.11712    0.06406  2.02228  2.18563
+
+── Paired t-tests vs Curriculum ──
+  Curriculum vs Shuffled Control              : Δ=-0.00336 BPC | t=-0.501 | p=0.643 — n.s.
+  Curriculum vs Anti-Curriculum (256→32)      : Δ=-0.17769 BPC | t=-15.606 | p=0.000 ✅ p<0.05
+  Curriculum vs Fixed-Long Baseline (256)     : Δ=+0.00108 BPC | t=0.153 | p=0.886 — n.s.
+
+── CE-3 HYPOTHESIS VERDICT ──
+  Anti-Curriculum: degradation CONFIRMED (Δ=+0.1777 BPC, p=0.0001)
+  Curriculum vs Shuffled: EQUIVALENT within ±0.01 BPC (Δ=-0.00336, p=0.6425)
+
+Summary saved → results/ce3_paired/ce3_summary.json
