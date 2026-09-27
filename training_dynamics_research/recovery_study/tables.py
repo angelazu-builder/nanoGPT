@@ -92,18 +92,18 @@ def extract_study_tables(study_data: Dict[int, Dict[str, Any]], active_seeds: Li
                                 "bpc": bpc_val,
                             })
 
-    # 4. Recovery Contrasts at Anchor Steps
+    # 4. Process-panel recovery contrasts at every recovery checkpoint
     seed_0_arms = study_data[active_seeds[0]]
     sample_arm = seed_0_arms.get("ascending", next(iter(seed_0_arms.values()))) if seed_0_arms else {}
-    anchor_steps = sorted([l["step"] for l in sample_arm.get("anchor_logs", [])])
+    recovery_steps = sorted(l["step"] for l in sample_arm.get("logs", []) if l["step"] >= 2000)
     
     for seed in active_seeds:
         if not all(arm in study_data[seed] for arm in ["ascending", "descending", "nonmonotonic"]):
             continue
-        for step in anchor_steps:
-            asc_log = next((l for l in study_data[seed]["ascending"].get("anchor_logs", []) if l["step"] == step), None)
-            desc_log = next((l for l in study_data[seed]["descending"].get("anchor_logs", []) if l["step"] == step), None)
-            nonm_log = next((l for l in study_data[seed]["nonmonotonic"].get("anchor_logs", []) if l["step"] == step), None)
+        for step in recovery_steps:
+            asc_log = next((l for l in study_data[seed]["ascending"].get("logs", []) if l["step"] == step), None)
+            desc_log = next((l for l in study_data[seed]["descending"].get("logs", []) if l["step"] == step), None)
+            nonm_log = next((l for l in study_data[seed]["nonmonotonic"].get("logs", []) if l["step"] == step), None)
             
             if not (asc_log and desc_log and nonm_log):
                 continue
@@ -117,8 +117,8 @@ def extract_study_tables(study_data: Dict[int, Dict[str, Any]], active_seeds: Li
                 tables.recovery_contrast_records.append({
                     "seed": seed,
                     "step": step,
+                    "recovery_step": step - 2000,
                     "evaluation_horizon": h,
-                    "contrast": "descending_minus_ascending",
                     "bpc_descending": bpc_desc,
                     "bpc_ascending": bpc_asc,
                     "bpc_nonmonotonic": bpc_nonm,
@@ -200,13 +200,13 @@ def export_tidy_csvs(tables: StudyTables, output_dir: str):
     if tables.recovery_contrast_records:
         path = os.path.join(data_dir, "recovery_contrasts.csv")
         fieldnames = [
-            "seed", "step", "evaluation_horizon", "contrast",
+            "seed", "step", "recovery_step", "evaluation_horizon",
             "bpc_descending", "bpc_ascending", "bpc_nonmonotonic",
             "delta_descending_minus_ascending", "delta_nonmonotonic_minus_ascending",
             "delta_descending_minus_nonmonotonic"
         ]
         with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
             writer.writeheader()
             writer.writerows(tables.recovery_contrast_records)
             

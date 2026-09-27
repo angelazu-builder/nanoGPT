@@ -370,13 +370,12 @@ def compute_preregistered_estimands(
             decision["case"] = "Case A: pre-recovery gap does not replicate"
             decision["verdict"] = "STOP"
             decision["rationale"] = f"|mean Delta^A(0)| = {abs(mean_pre):.4f} < {THRESHOLD_MIN_PRE_GAP}. Stop mechanism work."
-        elif abs(mean_post_500) <= THRESHOLD_MIN_PRE_GAP or (mean_post_500 <= THRESHOLD_MIN_PRE_GAP and stats_post_500["positive_count"] == 0):
-            decision["case"] = "Case B: gap is practically removed (reversible recency confirmed)"
+        elif abs(mean_post_500) <= THRESHOLD_MIN_PRE_GAP:
+            decision["case"] = "Case B: gap is practically removed"
             decision["verdict"] = "STOP"
             decision["rationale"] = (
-                f"Residual gap mean Delta^A(500) = {mean_post_500:+.4f} <= {THRESHOLD_MIN_PRE_GAP} BPC with 0/3 seeds showing persistent deficit. "
-                f"Recovery ratio R = {recovery_ratio_R:.3f} (< 0.25 threshold satisfied: {recovery_ratio_R < THRESHOLD_RECOVERY_RATIO}). "
-                "Conclude that the pre-recovery deficit was entirely reversible recency bias. Stop mechanism work."
+                f"|mean Delta^A(500)| = {abs(mean_post_500):.4f} <= "
+                f"{THRESHOLD_MIN_PRE_GAP} BPC. Supports a reversible terminal-context effect."
             )
         elif THRESHOLD_MIN_PRE_GAP < abs(mean_post_500) <= THRESHOLD_RESIDUAL_PERSISTENT or stats_post_500["positive_count"] not in [0, len(active_seeds)]:
             decision["case"] = "Case C: small residual is unresolved"
@@ -399,9 +398,15 @@ def compute_preregistered_estimands(
                 f"3/3 seeds positive, and plateau condition satisfied. Motivates targeted optimizer-state experiment."
             )
         else:
-            decision["case"] = "Case C: unresolved / boundary edge case"
+            decision["case"] = "Case C: large deficit reversed; residual sign reversal unresolved"
             decision["verdict"] = "UNRESOLVED"
-            decision["rationale"] = "Pattern falls into boundary conditions."
+            decision["rationale"] = (
+                f"The pre-recovery deficit reversed sign: mean Delta^A(0) = {mean_pre:+.4f} BPC and "
+                f"mean Delta^A(500) = {mean_post_500:+.4f} BPC. The reversed residual has magnitude "
+                f"{abs(mean_post_500):.4f} > {THRESHOLD_MIN_PRE_GAP} BPC, so it does not satisfy "
+                "the preregistered Case B practical-removal rule. The original positive deficit did not persist, "
+                "but the post-recovery residual remains unresolved."
+            )
 
     # 4. Multi-Horizon Endpoint Matrix
     horizon_endpoint_stats = {}

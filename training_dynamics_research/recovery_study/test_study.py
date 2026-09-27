@@ -197,6 +197,7 @@ class TestRecoveryStudyDesign(unittest.TestCase):
         # Case B: gap is practically eliminated
         self.assertEqual(evaluate_decision(0.160, 0.015, 3, 0.005), "Case B")
         self.assertEqual(evaluate_decision(0.160, -0.005, 1, 0.005), "Case B")
+        self.assertEqual(evaluate_decision(0.757, -0.0485, 0, 0.007), "Case C")
         
         # Case C: unresolved small residual or seed disagreement
         self.assertEqual(evaluate_decision(0.160, 0.025, 3, 0.005), "Case C")
@@ -413,4 +414,3 @@ class TestRecoveryStudyDesign(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

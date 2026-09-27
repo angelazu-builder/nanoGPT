@@ -6,7 +6,7 @@ Pure tabular plotting layer consuming canonical StudyTables.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import numpy as np
 
 import matplotlib
@@ -14,8 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from .core_types import StudyTables
-from .config import ARMS, CONTEXT_LENGTHS, THRESHOLD_RECOVERY_RATIO, THRESHOLD_RESIDUAL_PERSISTENT
-from .tables import export_tidy_csvs
+from .config import ARMS, CONTEXT_LENGTHS, THRESHOLD_MIN_PRE_GAP, THRESHOLD_RESIDUAL_PERSISTENT
 
 ARM_COLORS = {
     "ascending": "#1f77b4",     # blue
@@ -84,6 +83,7 @@ def plot_contract_figures(
     # Main Figure 2 — Recovery gap by evaluation horizon
     # -------------------------------------------------------------
     rec_steps = [s for s in checkpoints if s >= pre_step]
+    recovery_k = [s - pre_step for s in rec_steps]
     if len(rec_steps) >= 2:
         plt.figure(figsize=(10, 6))
         for h in horizons:
@@ -94,23 +94,18 @@ def plot_contract_figures(
                     for s in rec_steps
                 ]
                 gap_trajs.append(gaps)
+                plt.plot(recovery_k, gaps, color=HORIZON_COLORS[h], alpha=0.22, lw=1)
             mean_gaps = np.nanmean(gap_trajs, axis=0)
-            plt.plot(rec_steps, mean_gaps, color=HORIZON_COLORS[h], lw=2.5, marker="o", label=f"T={h}")
+            plt.plot(recovery_k, mean_gaps, color=HORIZON_COLORS[h], lw=2.5, marker="o", label=f"T={h}")
             
         plt.axhline(y=0.0, color="black", linestyle="-", lw=1, alpha=0.7)
-        plt.axhline(
-            y=THRESHOLD_RESIDUAL_PERSISTENT, color="red", linestyle="--", lw=1.2,
-            label=f"Persistent Threshold ({THRESHOLD_RESIDUAL_PERSISTENT} BPC, Anchor T=256)"
-        )
-        
-        # Vertical marker lines for k=0, 250, 500
+
         for k_offset in [0, 250, 500]:
-            k_step = pre_step + k_offset
-            if k_step in rec_steps:
-                plt.axvline(x=k_step, color="gray", linestyle=":", alpha=0.6)
+            if k_offset in recovery_k:
+                plt.axvline(x=k_offset, color="gray", linestyle=":", alpha=0.6)
                 
         plt.title("Main Figure 2: Process Recovery Gap Δ^P(k) by Horizon (T=256 Recovery)")
-        plt.xlabel("Global Step (Recovery Phase)")
+        plt.xlabel("Recovery Step k")
         plt.ylabel("Gap: Descending − Ascending (BPC)")
         plt.legend()
         plt.grid(True, alpha=0.3)
@@ -121,21 +116,30 @@ def plot_contract_figures(
     # -------------------------------------------------------------
     # Main Figures 3 & 4 — Anchor Performance Heatmaps
     # -------------------------------------------------------------
-    for fig_num, step_t in [(3, pre_step), (4, post_step)]:
+    anchor_matrices = {}
+    for step_t in [pre_step, post_step]:
         matrix = np.zeros((len(ARMS), len(horizons)))
         for r_idx, arm in enumerate(ARMS):
             for c_idx, h in enumerate(horizons):
                 vals = [tables.anchor_bpc(seed, arm, step_t, h) for seed in active_seeds]
                 matrix[r_idx, c_idx] = np.nanmean(vals)
-                
+        anchor_matrices[step_t] = matrix
+
+    shared_vmin = min(float(np.nanmin(matrix)) for matrix in anchor_matrices.values())
+    shared_vmax = max(float(np.nanmax(matrix)) for matrix in anchor_matrices.values())
+    shared_midpoint = (shared_vmin + shared_vmax) / 2.0
+
+    for fig_num, step_t in [(3, pre_step), (4, post_step)]:
+        matrix = anchor_matrices[step_t]
         plt.figure(figsize=(7, 4.5))
-        plt.imshow(matrix, cmap="viridis", aspect="auto")
+        plt.imshow(matrix, cmap="viridis", aspect="auto", vmin=shared_vmin, vmax=shared_vmax)
         plt.colorbar(label="Anchor Validation BPC")
         plt.xticks(range(len(horizons)), [f"T={h}" for h in horizons])
         plt.yticks(range(len(ARMS)), ARMS)
         for i in range(len(ARMS)):
             for j in range(len(horizons)):
-                plt.text(j, i, f"{matrix[i, j]:.4f}", ha="center", va="center", color="white" if matrix[i, j] > np.nanmean(matrix) else "black")
+                color = "white" if matrix[i, j] < shared_midpoint else "black"
+                plt.text(j, i, f"{matrix[i, j]:.4f}", ha="center", va="center", color=color)
         plt.title(f"Main Figure {fig_num}: Anchor BPC Heatmap at Step {step_t}")
         fname = f"main_0{fig_num}_anchor_heatmap_step{step_t}.png"
         plt.savefig(os.path.join(figures_dir, fname), dpi=200, bbox_inches="tight")
@@ -144,14 +148,8 @@ def plot_contract_figures(
     # -------------------------------------------------------------
     # Main Figure 5 — Pre-to-Post Anchor Change Heatmap
     # -------------------------------------------------------------
-    mat_2000 = np.zeros((len(ARMS), len(horizons)))
-    mat_2500 = np.zeros((len(ARMS), len(horizons)))
-    for r_idx, arm in enumerate(ARMS):
-        for c_idx, h in enumerate(horizons):
-            v_pre = [tables.anchor_bpc(seed, arm, pre_step, h) for seed in active_seeds]
-            v_post = [tables.anchor_bpc(seed, arm, post_step, h) for seed in active_seeds]
-            mat_2000[r_idx, c_idx] = np.nanmean(v_pre)
-            mat_2500[r_idx, c_idx] = np.nanmean(v_post)
+    mat_2000 = anchor_matrices[pre_step]
+    mat_2500 = anchor_matrices[post_step]
     change_matrix = mat_2500 - mat_2000
     
     plt.figure(figsize=(7, 4.5))
@@ -252,8 +250,20 @@ def plot_contract_figures(
         m_y.append(summary["extension_results"]["stats_post_1000"]["mean"])
     plt.plot(m_x, m_y, marker="s", color="black", lw=3.0, label="3-Seed Mean", zorder=4)
     
+    plt.axhspan(
+        -THRESHOLD_MIN_PRE_GAP,
+        THRESHOLD_MIN_PRE_GAP,
+        color="gray",
+        alpha=0.15,
+        label=f"Case B band (|Δ| ≤ {THRESHOLD_MIN_PRE_GAP:.2f})",
+    )
     plt.axhline(y=0.0, color="black", linestyle="-", lw=1)
-    plt.axhline(y=THRESHOLD_RESIDUAL_PERSISTENT, color="red", linestyle="--", label=f"Persistent Threshold ({THRESHOLD_RESIDUAL_PERSISTENT})")
+    plt.axhline(
+        y=THRESHOLD_RESIDUAL_PERSISTENT,
+        color="red",
+        linestyle="--",
+        label=f"Positive persistence threshold (+{THRESHOLD_RESIDUAL_PERSISTENT:.2f})",
+    )
     plt.xticks(m_x, [f"Step {pre_step}\n(k=0)", f"Step {post_step}\n(k=500)"] + ([f"Step 3000\n(k=1000)"] if has_extension else []))
     plt.ylabel("Gap: Descending − Ascending (BPC at T=256)")
     plt.title("Appendix Figure A3: Paired Seed Trajectories & 3-Seed Mean")
@@ -266,24 +276,28 @@ def plot_contract_figures(
     # -------------------------------------------------------------
     # Appendix A4 — Context Alignment Gap
     # -------------------------------------------------------------
-    plt.figure(figsize=(8, 5))
-    bar_w = 0.35
-    for a_idx, arm in enumerate(["descending", "nonmonotonic"]):
-        diffs = []
-        for h_idx, h in enumerate(horizons):
-            h_diffs = [
-                tables.anchor_bpc(s, arm, post_step, h) - tables.anchor_bpc(s, "ascending", post_step, h)
-                for s in active_seeds
-            ]
-            diffs.append(np.nanmean(h_diffs))
-            for val in h_diffs:
-                plt.scatter(h_idx + (a_idx - 0.5) * bar_w, val, color=ARM_COLORS[arm], alpha=0.4, s=20, zorder=3)
-        plt.bar(np.arange(4) + (a_idx - 0.5) * bar_w, diffs, width=bar_w, color=ARM_COLORS[arm], alpha=0.7, label=f"{arm} − ascending")
+    plt.figure(figsize=(9, 5.5))
+    alignment_trajectories = []
+    for seed in active_seeds:
+        values = []
+        for step in rec_steps:
+            delta_256 = tables.process_bpc(seed, "descending", step, 256) - tables.process_bpc(seed, "ascending", step, 256)
+            delta_32 = tables.process_bpc(seed, "descending", step, 32) - tables.process_bpc(seed, "ascending", step, 32)
+            values.append(delta_256 - delta_32)
+        alignment_trajectories.append(values)
+        plt.plot(recovery_k, values, color="#4c78a8", alpha=0.3, lw=1.2, marker="o", markersize=3)
+    plt.plot(
+        recovery_k,
+        np.mean(alignment_trajectories, axis=0),
+        color="#173f5f",
+        lw=3,
+        marker="o",
+        label="3-seed mean",
+    )
     plt.axhline(y=0.0, color="black", linestyle="--", lw=1)
-    plt.xticks(range(4), [f"T={h}" for h in horizons])
-    plt.xlabel("Evaluation Horizon")
-    plt.ylabel("Residual Gap vs Ascending (BPC)")
-    plt.title(f"Appendix Figure A4: Context Alignment at Step {post_step}")
+    plt.xlabel("Recovery Step k")
+    plt.ylabel(r"$A^P(k)=\Delta_{256}^{P}(k)-\Delta_{32}^{P}(k)$ (BPC)")
+    plt.title("Appendix Figure A4: Context-Alignment Contrast During Recovery")
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -293,30 +307,38 @@ def plot_contract_figures(
     # -------------------------------------------------------------
     # Appendix A5 — Nonmonotonic Exploratory Contrasts
     # -------------------------------------------------------------
-    rec_steps_a5 = [s for s in checkpoints if s >= pre_step]
-    if len(rec_steps_a5) >= 2:
-        plt.figure(figsize=(9, 5))
-        d_na = []
-        d_dn = []
-        for s in rec_steps_a5:
-            d_na_seeds = [
-                tables.process_bpc(sd, "nonmonotonic", s, 256) - tables.process_bpc(sd, "ascending", s, 256)
-                for sd in active_seeds
-            ]
-            d_dn_seeds = [
-                tables.process_bpc(sd, "descending", s, 256) - tables.process_bpc(sd, "nonmonotonic", s, 256)
-                for sd in active_seeds
-            ]
-            d_na.append(np.nanmean(d_na_seeds))
-            d_dn.append(np.nanmean(d_dn_seeds))
-        plt.plot(rec_steps_a5, d_na, color="purple", lw=2, marker="o", label="Nonmonotonic − Ascending")
-        plt.plot(rec_steps_a5, d_dn, color="teal", lw=2, marker="s", label="Descending − Nonmonotonic")
-        plt.axhline(y=0.0, color="black", linestyle=":", lw=1)
-        plt.xlabel("Global Step")
-        plt.ylabel("Contrast Gap (BPC at T=256)")
-        plt.title("Appendix Figure A5: Nonmonotonic Exploratory Contrasts")
-        plt.legend()
-        plt.grid(True, alpha=0.3)
+    if len(rec_steps) >= 2:
+        fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey=False)
+        for idx, h in enumerate(horizons):
+            ax = axes[idx // 2, idx % 2]
+            contrast_means = {}
+            for label, first_arm, second_arm, color in [
+                ("Nonmonotonic − Ascending", "nonmonotonic", "ascending", "purple"),
+                ("Descending − Nonmonotonic", "descending", "nonmonotonic", "teal"),
+            ]:
+                seed_trajectories = []
+                for seed in active_seeds:
+                    values = [
+                        tables.process_bpc(seed, first_arm, step, h)
+                        - tables.process_bpc(seed, second_arm, step, h)
+                        for step in rec_steps
+                    ]
+                    seed_trajectories.append(values)
+                    ax.plot(recovery_k, values, color=color, alpha=0.22, lw=1)
+                contrast_means[label] = np.mean(seed_trajectories, axis=0)
+                ax.plot(recovery_k, contrast_means[label], color=color, lw=2.5, marker="o", label=label)
+            ax.axhline(y=0.0, color="black", linestyle=":", lw=1)
+            ax.set_title(f"Evaluation Horizon T={h}")
+            if idx >= 2:
+                ax.set_xlabel("Recovery Step k")
+            ax.set_ylabel("Process Contrast (BPC)")
+            ax.grid(True, alpha=0.3)
+            if idx == 0:
+                ax.legend()
+        fig.suptitle(
+            "Appendix Figure A5: Exploratory — one prespecified nonmonotonic permutation",
+            fontsize=13,
+        )
         plt.tight_layout()
         plt.savefig(os.path.join(figures_dir, "appendix_A5_nonmonotonic_exploratory.png"), dpi=200)
         plt.close()
