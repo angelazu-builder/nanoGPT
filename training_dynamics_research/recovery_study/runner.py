@@ -538,14 +538,18 @@ def run_recovery_study(
     print(f"Extension mode: {extend}")
     
     # 1. Dataset & Manifest Initialization
-    train_data = torch.tensor(ds.train_data, dtype=torch.long)
-    val_data = torch.tensor(ds.val_data, dtype=torch.long)
+    train_data = torch.as_tensor(ds.train_data, dtype=torch.long)
+    val_data = torch.as_tensor(ds.val_data, dtype=torch.long)
     train_len = len(train_data)
     val_len = len(val_data)
     
     val_manifest_path = os.path.join(results_dir, "validation_manifest.npz")
     if not os.path.exists(val_manifest_path):
-        val_start_indices = generate_validation_manifest(val_len, n_sequences=N_ANCHOR_SEQUENCES, val_context=VAL_CONTEXT)
+        val_start_indices = generate_validation_manifest(
+            n_sequences=N_ANCHOR_SEQUENCES,
+            context_length=VAL_CONTEXT,
+            val_length=val_len,
+        )
         np.savez(
             val_manifest_path,
             anchor_indices=val_start_indices,
