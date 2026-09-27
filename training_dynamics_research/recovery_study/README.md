@@ -10,6 +10,8 @@ Execution implementation for the preregistered study:
 ```text
 training_dynamics_research/recovery_study/
 ├── PREREGISTRATION.md   # Frozen experimental specification & decision rules
+├── PREREGISTRATION_AMENDMENT_001_FIGURES.md
+├── TECHNICAL_REPORT.md  # Corrected results, interpretation, and provenance
 ├── config.py            # Global hyperparameters, seeds, and decision thresholds
 ├── schedules.py         # Ascending, descending, and nonmonotonic schedule builders
 ├── manifests.py         # RNG-decoupled scheduled, recovery, & extended batch manifests
@@ -29,9 +31,10 @@ results/recovery_study/
 ├── seed_42/{ascending,descending,nonmonotonic}/
 ├── seed_43/{ascending,descending,nonmonotonic}/
 ├── seed_44/{ascending,descending,nonmonotonic}/
-├── plots/
-│   ├── recovery_horizon_trajectories.png
-│   └── paired_seed_recovery.png
+├── figures/
+│   ├── data/            # Five canonical tidy CSV tables
+│   ├── main_01_*.png ... main_05_*.png
+│   └── appendix_A1_*.png ... appendix_A5_*.png
 └── summary.json
 ```
 
@@ -76,4 +79,4 @@ This loads each arm's `checkpoint_step_2500.pt`, preserves Adam moments and RNG 
 ```bash
 python3 -m training_dynamics_research.recovery_study.analyze
 ```
-Outputs statistical summaries, 4-horizon trajectories, transition shocks, AUCs, and saves figures to `results/recovery_study/plots/`.
+Outputs the corrected preregistered summary, five tidy tables, and the complete figure set under `results/recovery_study/figures/`. The interpretation and exact training/analysis/figure provenance are recorded in `TECHNICAL_REPORT.md`.

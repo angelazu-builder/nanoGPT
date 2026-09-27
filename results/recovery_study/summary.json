@@ -140,9 +140,9 @@
   },
   "extension_results": null,
   "decision": {
-    "case": "Case B: gap is practically removed (reversible recency confirmed)",
-    "verdict": "STOP",
-    "rationale": "Residual gap mean Delta^A(500) = -0.0485 <= 0.02 BPC with 0/3 seeds showing persistent deficit. Recovery ratio R = -0.064 (< 0.25 threshold satisfied: True). Conclude that the pre-recovery deficit was entirely reversible recency bias. Stop mechanism work."
+    "case": "Case C: large deficit reversed; residual sign reversal unresolved",
+    "verdict": "UNRESOLVED",
+    "rationale": "The pre-recovery deficit reversed sign: mean Delta^A(0) = +0.7570 BPC and mean Delta^A(500) = -0.0485 BPC. The reversed residual has magnitude 0.0485 > 0.02 BPC, so it does not satisfy the preregistered Case B practical-removal rule. The original positive deficit did not persist, but the post-recovery residual remains unresolved."
   },
   "horizon_endpoint_stats": {
     "32": {
