@@ -421,58 +421,17 @@ def analyze_recovery_study(results_dir=BASE_RESULTS_DIR, generate_plots=True, se
     # -------------------------------------------------------------
     # 8. Matplotlib Plots Generation
     # -------------------------------------------------------------
+    # -------------------------------------------------------------
+    # 8. Amendment 001: Figures and Tidy Data CSV Exports
+    # -------------------------------------------------------------
     if generate_plots:
         try:
-            import matplotlib.pyplot as plt
-            plots_dir = os.path.join(results_dir, "plots")
-            os.makedirs(plots_dir, exist_ok=True)
-            
-            # Plot 1: Recovery gap trajectories across horizons
-            plt.figure(figsize=(10, 6))
-            steps_arr = np.array(checkpoints)
-            colors = {32: "#9467bd", 64: "#2ca02c", 128: "#ff7f0e", 256: "#1f77b4"}
-            for h in CONTEXT_LENGTHS:
-                y = np.array(horizon_trajectories[h]["delta_mean"])
-                err = np.array(horizon_trajectories[h]["delta_std"])
-                plt.plot(steps_arr, y, label=f"T={h}", color=colors[h], lw=2)
-                if len(active_seeds) > 1:
-                    plt.fill_between(steps_arr, y - err, y + err, color=colors[h], alpha=0.15)
-                
-            plt.axvline(x=pre_step, color="gray", linestyle="--", label=f"Recovery Onset (Step {pre_step})")
-            plt.axhline(y=0.0, color="black", linestyle=":", lw=1)
-            plt.axhline(y=0.03, color="red", linestyle=":", label="Persistent Threshold (0.03 BPC)")
-            plt.axhline(y=0.02, color="orange", linestyle=":", label="Minimum Pre-gap (0.02 BPC)")
-            plt.title("Context Horizon Recovery Trajectories Δ_h(k) [Descending − Ascending]")
-            plt.xlabel("Global Step")
-            plt.ylabel("Paired Δ BPC")
-            plt.legend(loc="upper right")
-            plt.grid(True, alpha=0.3)
-            p1_path = os.path.join(plots_dir, "recovery_horizon_trajectories.png")
-            plt.savefig(p1_path, dpi=200, bbox_inches="tight")
-            plt.close()
-            print(f"Generated plot: {p1_path}")
-            
-            # Plot 2: Per-seed pre vs post endpoint differences
-            plt.figure(figsize=(8, 5))
-            x_pts = [0, 1]
-            for s_idx, s in enumerate(active_seeds):
-                pre_v = seed_details[s]["pre"]["delta_D_A"]
-                post_v = seed_details[s]["post"]["delta_D_A"]
-                plt.plot(x_pts, [pre_v, post_v], marker="o", label=f"Seed {s}", lw=2)
-            plt.axhline(y=0.0, color="black", linestyle=":", lw=1)
-            plt.axhline(y=0.03, color="red", linestyle=":", alpha=0.5, label="0.03 BPC")
-            plt.xticks(x_pts, [f"Pre-Recovery (Step {pre_step})", f"Post-Recovery (Step {post_step})"])
-            plt.ylabel("Paired Δ^A BPC (Descending − Ascending)")
-            plt.title("Pre-to-Post Recovery Paired Gap by Seed")
-            plt.legend()
-            plt.grid(True, alpha=0.3)
-            p2_path = os.path.join(plots_dir, "paired_seed_recovery.png")
-            plt.savefig(p2_path, dpi=200, bbox_inches="tight")
-            plt.close()
-            print(f"Generated plot: {p2_path}")
-            
+            from .figures import export_tidy_csvs, generate_contract_figures
+            figures_dir = os.path.join(results_dir, "figures")
+            export_tidy_csvs(data, active_seeds, checkpoints, pre_step, post_step, figures_dir)
+            generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_step, figures_dir)
         except Exception as e:
-            print(f"Note: Plot generation skipped or encountered issue: {e}")
+            print(f"Note: Figure/CSV contract export encountered issue: {e}")
             
     # Terminal Display
     print("\n" + "=" * 68)
