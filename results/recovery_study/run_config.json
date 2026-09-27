@@ -1,0 +1,61 @@
+{
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "arms": [
+    "ascending",
+    "descending",
+    "nonmonotonic"
+  ],
+  "schedules": {
+    "ascending": [
+      32,
+      64,
+      128,
+      256
+    ],
+    "descending": [
+      256,
+      128,
+      64,
+      32
+    ],
+    "nonmonotonic": [
+      64,
+      256,
+      32,
+      128
+    ]
+  },
+  "arm_rotation": {
+    "42": [
+      "ascending",
+      "descending",
+      "nonmonotonic"
+    ],
+    "43": [
+      "descending",
+      "nonmonotonic",
+      "ascending"
+    ],
+    "44": [
+      "nonmonotonic",
+      "ascending",
+      "descending"
+    ]
+  },
+  "max_steps": 2500,
+  "smoke_test": false,
+  "extend_mode": false,
+  "device": "mps",
+  "git_commit": "30a126cb7fbee5b5d730aeccc6efa33a18cdf4f8",
+  "preregistration_commit": "f1bf7b7",
+  "python_version": "3.14.6",
+  "torch_version": "2.14.0",
+  "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+  "dataset_train_len": 1003854,
+  "dataset_val_len": 111540,
+  "timestamp": "2026-09-27 18:24:49"
+}

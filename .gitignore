@@ -23,4 +23,4 @@ Thumbs.db
 scratch/
 tmp/
 results/recovery_study_smoke/
-results/recovery_study/
+*.npz
