@@ -36,34 +36,39 @@ For recovery step \(k\), define:
 \mathrm{BPC}_{ascending,\,2000+k}.
 \]
 
-The main checkpoints are:
+Two nested validation estimators are used:
+
+- \(\Delta^{P}(k)\): the descending-minus-ascending difference on the fixed 16-sequence process panel, used for trajectories and plateau tests;
+- \(\Delta^{A}(k)\): the same difference on the fixed 32-sequence anchor panel, used for the formal pre/post endpoint estimates.
+
+The main anchor checkpoints are:
 
 \[
-\Delta_{pre}=\Delta(0)
+\Delta_{pre}=\Delta^{A}(0)
 \]
 
 and:
 
 \[
-\Delta_{post}=\Delta(500).
+\Delta_{post}=\Delta^{A}(500).
 \]
 
 Define absolute recovery:
 
 \[
-G_{recovered}=\Delta(0)-\Delta(500).
+G_{recovered}=\Delta^{A}(0)-\Delta^{A}(500).
 \]
 
 Only when:
 
 \[
-|\Delta(0)|\ge 0.02\ \mathrm{BPC}
+|\Delta^{A}(0)|\ge 0.02\ \mathrm{BPC}
 \]
 
 may the recovery ratio be interpreted:
 
 \[
-R=\frac{\Delta(500)}{\Delta(0)}.
+R=\frac{\Delta^{A}(500)}{\Delta^{A}(0)}.
 \]
 
 ### Primary hypothesis
@@ -76,16 +81,18 @@ R<0.25.
 
 This means at least 75% of the pre-recovery gap is removed during matched long-context recovery.
 
+The ratio describes the fraction recovered but does not by itself determine stop/go. A small ratio and a practically meaningful absolute residual can coexist; absolute anchor residuals and process-panel plateau behavior govern follow-up decisions.
+
 ### Persistent-effect candidate
 
 Evidence is considered sufficient to justify a subsequent mechanism experiment only if all conditions hold:
 
-1. mean \(\Delta(500)>0.03\) BPC;
-2. all three paired seeds have \(\Delta(500)>0\);
+1. mean \(\Delta^{A}(500)>0.03\) BPC;
+2. all three paired seeds have \(\Delta^{A}(500)>0\);
 3. the mean gap has approximately plateaued:
 
    \[
-   |\Delta(500)-\Delta(400)|<0.01\ \mathrm{BPC};
+   |\Delta^{P}(500)-\Delta^{P}(400)|<0.01\ \mathrm{BPC};
    \]
 
 4. no run failed validity or reproducibility checks.
@@ -98,7 +105,7 @@ The thresholds are project-specific decision rules and must be frozen before tra
 
 ### 0.02 BPC: minimum interpretable pre-gap
 
-If \(|\Delta(0)|<0.02\), the denominator of the recovery ratio is too small for stable interpretation. The correct conclusion is that the previous large degradation did not clearly replicate under the matched-block design.
+If \(|\Delta^{A}(0)|<0.02\), the denominator of the recovery ratio is too small for stable interpretation. The correct conclusion is that the previous large degradation did not clearly replicate under the matched-block design.
 
 ### 0.25: recovery-ratio criterion
 
@@ -294,7 +301,7 @@ def generate_scheduled_manifest(seed, train_length):
         rng = np.random.RandomState(seed * 10_000 + T)
         manifest[T] = rng.randint(
             0,
-            train_length - T - 1,
+            train_length - T,
             size=(500, B),
         )
 
@@ -310,7 +317,7 @@ def generate_recovery_manifest(seed, train_length):
     rng = np.random.RandomState(seed * 10_000 + 9_999)
     return rng.randint(
         0,
-        train_length - 256 - 1,
+        train_length - 256,
         size=(500, 16),
     )
 ```
@@ -340,13 +347,13 @@ anchor_manifest = generate_validation_manifest(
 process_manifest = anchor_manifest[:N_PROCESS_SEQUENCES]
 ```
 
-The 16-sequence process panel is used at every preregistered checkpoint to estimate the shape of training and recovery dynamics. The 32-sequence anchor panel is used only at global steps 2000 and 2500 for the main pre/post estimates. Because the process panel is a fixed subset of the anchor panel, the process curves and anchor estimates refer to nested, not independently redrawn, validation targets.
+The 16-sequence process panel is used at every preregistered checkpoint to estimate the shape of training and recovery dynamics. The 32-sequence anchor panel is used at global steps 2000 and 2500 for the main pre/post estimates, and at step 3000 only if the one-time extension is triggered. Because the process panel is a fixed subset of the anchor panel, the process curves and anchor estimates refer to nested, not independently redrawn, validation targets.
 
 For each evaluation horizon, score the same final 32 target positions. The process panel therefore contains 512 scored target positions per horizon, and the anchor panel contains 1,024. These counts do not justify a prespecified claim that effects of ±0.01 BPC are detectable because targets within a sequence are correlated and training-seed uncertainty remains dominant.
 
 All arms, seeds, checkpoints, and context horizons use identical validation endpoints. Microbatching may change for memory reasons, but targets and scoring must not change.
 
-Store loss separately for each validation sequence. Estimate evaluation uncertainty by resampling sequences as blocks. Do not treat individual tokens in the same sequence as independent bootstrap samples. At steps 2000 and 2500, save all 32 per-sequence losses so the 16-sequence process estimate can be reconstructed from the same evaluation pass.
+Store loss separately for each validation sequence. Estimate evaluation uncertainty by resampling sequences as blocks. Do not treat individual tokens in the same sequence as independent bootstrap samples. At anchor checkpoints, save all 32 per-sequence losses so the 16-sequence process estimate can be reconstructed from the same evaluation pass.
 
 ## 11. Evaluation checkpoints
 
@@ -362,7 +369,7 @@ EVAL_STEPS = [
     1500, 1501,
     1750,
     2000, 2001, 2010, 2050,
-    2100, 2250, 2500,
+    2100, 2400, 2500,
 ]
 ```
 
@@ -379,7 +386,7 @@ The checkpoint roles are:
 | Within-block trajectory | 250, 750, 1250, 1750 |
 | Immediate transition response | 500/501, 1000/1001, 1500/1501 |
 | Recovery onset and early adaptation | 2000/2001, 2010, 2050 |
-| Recovery middle and endpoint | 2100, 2250, 2500 |
+| Recovery middle, plateau check, and endpoint | 2100, 2400, 2500 |
 
 At global steps 2000 and 2500, evaluate the full 32-sequence anchor panel at all four horizons. The first 16 sequences supply the process-panel value; all 32 supply the anchor value. Thus the study produces 17 distinct temporal matrices per seed, 51 raw seed-level matrices overall, and two higher-precision anchor matrices after aggregation.
 
@@ -389,10 +396,10 @@ Save full model checkpoints at global steps 2000 and 2500. Save metrics, but not
 
 ### Confirmatory outcomes
 
-- \(\Delta(0)\);
-- \(\Delta(500)\);
+- \(\Delta^{A}(0)\);
+- \(\Delta^{A}(500)\);
 - absolute gap recovered;
-- recovery fraction or ratio when \(|\Delta(0)|\ge0.02\);
+- recovery fraction or ratio when \(|\Delta^{A}(0)|\ge0.02\);
 - direction of paired differences across seeds.
 
 ### Secondary outcomes
@@ -484,28 +491,42 @@ Rules:
 
 ### Case A: pre-recovery gap does not replicate
 
-If \(|\mathrm{mean}\ \Delta(0)|<0.02\), stop mechanism work and do not interpret the recovery ratio.
+If \(|\mathrm{mean}\ \Delta^{A}(0)|<0.02\), stop mechanism work and do not interpret the recovery ratio.
 
-### Case B: gap is mostly removed
+### Case B: gap is practically removed
 
-If \(|\mathrm{mean}\ \Delta(500)|\le0.02\), or interpretable \(R<0.25\), conclude that the result primarily supports a reversible terminal-context/recency explanation. Stop mechanism expansion.
+If \(|\mathrm{mean}\ \Delta^{A}(500)|\le0.02\), conclude that the result primarily supports a reversible terminal-context/recency explanation. Stop mechanism expansion.
 
-### Case C: result is unresolved
+### Case C: small residual is unresolved
 
-If the remaining mean gap is between 0.02 and 0.03 BPC, or seed directions disagree, report the result as unresolved. Do not claim equivalence or a persistent effect.
+If \(0.02<|\mathrm{mean}\ \Delta^{A}(500)|\le0.03\) BPC, or anchor seed directions disagree, report how much of the original gap recovered but classify the residual as unresolved. Do not claim equivalence or a persistent effect. The ratio \(R\) remains descriptive and never overrides the absolute residual threshold.
 
 ### Case D: gap remains large but is still recovering
 
-If mean \(\Delta(500)>0.03\) and mean \(\Delta(400)-\Delta(500)>0.01\), the 500-step recovery is insufficient. Extend **all three arms for all three seeds** by another 500 matched `T=256` steps, using a separately pregenerated `extended_recovery_manifest` shared by recovery step.
+If mean \(\Delta^{A}(500)>0.03\) and mean \(\Delta^{P}(400)-\Delta^{P}(500)>0.01\), the 500-step recovery is insufficient. Extend **all three arms for all three seeds exactly once** by another 500 matched `T=256` steps. The experiment has a hard cap at global step 3000.
+
+During steps 2501–3000:
+
+- keep `T=256` and `B=16`;
+- clamp learning rate at the existing `min_lr = 1e-4`;
+- preserve optimizer state;
+- use a separately pregenerated `extended_recovery_manifest` matched exactly by extension step;
+- evaluate the 16-sequence process panel at steps 2600, 2750, 2900, and 3000;
+- evaluate the 32-sequence anchor panel at step 3000;
+- save a full checkpoint at step 3000.
+
+At the hard cap, assess the final 100-step plateau with \(|\Delta^{P}(1000)-\Delta^{P}(900)|\). If the gap is still materially decreasing, report that slow recovery and persistent path dependence remain unresolved; do not extend again.
 
 ### Case E: persistent-effect candidate
 
 Proceed to a targeted optimizer-state experiment only if:
 
-- mean \(\Delta(500)>0.03\);
-- `3/3` paired seeds have positive \(\Delta(500)\);
-- \(|\Delta(500)-\Delta(400)|<0.01\);
+- mean \(\Delta^{A}(500)>0.03\);
+- `3/3` paired seeds have positive \(\Delta^{A}(500)\);
+- \(|\Delta^{P}(500)-\Delta^{P}(400)|<0.01\);
 - all validity checks pass.
+
+If the one-time extension was triggered, replace the 500-step criteria above with the corresponding step-1000 anchor residual and process-panel plateau at recovery steps 900–1000. Persistence is always qualified as persistence under matched `T=256` training at the fixed minimum learning rate.
 
 The next experiment should initially test only:
 
@@ -546,7 +567,7 @@ Before formal training, freeze:
 - primary, secondary, and exploratory metrics;
 - recovery checkpoints;
 - the 0.02, 0.25, 0.03, and 0.01 decision thresholds;
-- adaptive-extension rule;
+- the one-time adaptive-extension rule, hard cap at step 3000, fixed `min_lr = 1e-4`, extension checkpoints, and extended-recovery manifest namespace;
 - run exclusion criteria;
 - code commit and environment metadata.
 
@@ -558,8 +579,8 @@ Commit `PREREGISTRATION.md` before producing formal results. If a change becomes
 2. **Research question** — define recency and persistent path dependence operationally.
 3. **Prior evidence and hypotheses** — separate literature, previous project observations, and preregistered predictions.
 4. **Methods** — arms, held constants, pairing, manifest namespaces, validation, metrics, hardware, and statistical policy.
-5. **Results: pre-recovery replication** — report \(\Delta(0)\) before discussing recovery.
-6. **Results: recovery trajectory** — report \(\Delta(k)\), \(\Delta(500)\), absolute recovery, and ratio when valid.
+5. **Results: pre-recovery replication** — report \(\Delta^{A}(0)\) before discussing recovery.
+6. **Results: recovery trajectory** — report \(\Delta^{P}(k)\), anchor endpoints \(\Delta^{A}(0)\) and \(\Delta^{A}(500)\), absolute recovery, and ratio when valid.
 7. **Results: exploratory nonmonotonic control** — clearly separated from the primary comparison.
 8. **Results: context-sensitive targets and compute cost**.
 9. **Failed hypotheses and contradictions** — mandatory, including measurement or design surprises.
