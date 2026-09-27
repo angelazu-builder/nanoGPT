@@ -1,39 +1,43 @@
 ---
 name: beautiful-code-self-review
-description: Design, refactor, or review non-trivial code by preferring clear state and data flow over accumulating patches, flags, validators, and special cases. Use when code works but feels brittle, responsibilities are mixed, lifecycle bugs recur, or the user asks whether code is elegant, overengineered, or becoming a mess.
+description: Design, refactor, or review non-trivial code by reducing entangled state, leaky interfaces, speculative abstraction, and patch accumulation. Use when code works but feels brittle, lifecycle bugs recur, responsibilities are mixed, or the user asks whether code is elegant, overengineered, or becoming a mess.
 ---
 
 # Beautiful Code Self-Review
 
-Use this skill to make code easier to reason about, not merely shorter or more abstract. Treat elegance as an engineering property: the code should make the intended behavior obvious and invalid behavior difficult to express.
+Use this skill to make code easier to understand, change, test, and trust. Do not equate elegance with short functions, many layers, zero duplication, strict style rules, or impressive abstractions.
 
-## Define the standard
+Judge the design in its actual context. A contest algorithm, research prototype, product service, and safety-critical database should not pay the same abstraction or verification costs.
 
-Beautiful code usually has these properties:
+## The standard
 
-- **Local reasoning:** a function can be understood without reconstructing distant side effects or hidden ordering requirements.
-- **Explicit state:** lifecycle, mode, stage, and completion are represented directly rather than inferred from filenames, missing fields, or incidental checkpoints.
-- **One source of truth:** the same fact is not encoded independently in configuration, branches, filenames, and analysis assumptions.
-- **Structural invariants:** important rules follow from the design; they are not maintained only by scattered checks.
-- **One-way data flow:** initialization, mutation, recording, persistence, analysis, and presentation occur in a visible order.
-- **Narrow responsibilities:** each module owns a coherent decision rather than acting as an all-purpose coordinator.
-- **Errors near their source:** invalid input or state fails at the boundary where it first becomes invalid.
-- **Separated representations:** raw execution artifacts, validated analysis tables, scientific estimands, and presentation outputs are distinct layers.
-- **Proportionate abstraction:** an abstraction removes real duplication or ambiguity; it is not added for hypothetical future use.
-- **Deletion-friendly design:** a good structural change usually removes branches, repeated interpretations, or temporal coupling.
+Beautiful code tends to have:
 
-Readable names and tidy directories help, but they do not compensate for an unclear state model.
+- **Local reasoning:** understand a unit without reconstructing distant mutations or hidden call order.
+- **Low entanglement:** concerns that change independently are not interwoven in state, time, or control flow.
+- **Deep modules:** a small, stable interface hides substantial implementation knowledge and provides meaningful capability.
+- **Cohesive ownership:** each important fact or design decision has one natural home.
+- **Explicit lifecycle:** mode, stage, progress, completion, and legal transitions are represented directly.
+- **One-way data flow:** initialization, execution, state update, persistence, validation, analysis, and presentation have a visible order.
+- **Errors near their source:** invalid state is rejected at the boundary where it first becomes invalid.
+- **Proportionate machinery:** every abstraction, dependency, configuration option, and validation layer earns its cost.
+- **Changeability:** likely changes stay local instead of propagating through callers and unrelated modules.
+- **Evidence:** tests and measurements support the properties the code claims to have.
 
-## Start with behavior and invariants
+Readable names and tidy folders are useful, but they cannot rescue a leaky state model.
 
-Before proposing changes, state:
+## Start from behavior and knowledge
 
-1. What outcome the code must produce.
-2. What must remain constant.
-3. What states or transitions are valid.
-4. Which failures would make the output incorrect rather than merely inconvenient.
+Before reviewing or changing code, state:
 
-For research code, include scientific invariants such as paired initialization, matched data, fixed evaluation targets, prespecified endpoints, and separation of debug from formal results.
+1. What outcome must be produced?
+2. What invariants make that outcome trustworthy?
+3. What states and transitions are legal?
+4. Which design knowledge should have a single owner?
+5. What is expected to change independently?
+6. What failure cost and performance constraints apply?
+
+For research code, include scientific invariants such as paired initialization, matched data, fixed targets, prespecified endpoints, and isolation of debug artifacts from formal evidence.
 
 Trace one representative item through the system:
 
@@ -48,43 +52,54 @@ specification
   -> presentation
 ```
 
-If correctness depends on remembering an undocumented ordering between these stages, identify that as temporal coupling.
+Mark every place where a reader must know something not visible at the interface. These hidden dependencies and obscured facts are stronger evidence of complexity than line count.
 
-## Decide: local fix or structural change
+## Diagnose the shape of the complexity
 
-Use a local fix when all of the following are true:
+Look for four forms of friction:
+
+### Change amplification
+
+One conceptual change requires edits in many places. Common causes are duplicated knowledge, leaky abstractions, and multiple representations of the same state.
+
+### Cognitive load
+
+A reader must hold too many concepts, flags, branches, or cross-file assumptions at once. A large cohesive function can be easier than several pass-through helpers; count concepts and dependencies, not methods.
+
+### Unknown unknowns
+
+It is unclear what else may break. Warning signs include ambient global state, mode inference from files, broad exception handling, and schemas that vary by caller.
+
+### Temporal coupling
+
+Correctness depends on operations happening in an undocumented order, such as saving before or after a log mutation. Make the lifecycle explicit or combine the knowledge in one owner.
+
+## Decide: patch or restructure
+
+Use a local patch when:
 
 - the defect is isolated;
-- the surrounding ownership and data flow are already clear;
-- the fix does not introduce a new mode, lifecycle state, duplicated fact, or distant dependency;
-- one focused test can protect the behavior.
+- ownership and data flow are already clear;
+- the change adds no new semantic mode or duplicated fact;
+- one focused behavioral test protects it.
 
-Prefer a structural change when any of these are true:
+Prefer a structural change when:
 
 - similar bugs recur in the same lifecycle;
-- a function mixes initialization, execution, persistence, and interpretation;
-- new behavior requires another flag in several functions;
-- code infers semantic state from file existence or partial data;
-- the same nested data is reinterpreted independently by many consumers;
-- correctness depends on calling operations in the right order;
-- validators are multiplying because invalid states remain easy to construct;
-- a proposed patch adds more branches than it removes.
+- one function mixes initialization, execution, persistence, and interpretation;
+- a feature requires the same new flag across several layers;
+- semantic state is inferred from filenames, missing fields, or observed outputs;
+- many consumers independently reinterpret the same nested data;
+- validators multiply because invalid states remain easy to construct;
+- the proposed patch adds more legal combinations or branches than it removes.
 
-Do not equate refactoring with adding classes. The best structural change may be reordering operations, introducing one canonical record, separating two stages, or deleting a compatibility path.
+Do not equate restructuring with adding classes. Reordering operations, unifying a record, separating stages, deleting a compatibility path, or moving knowledge behind one interface may be enough.
 
-## Prefer these structural moves
+## Choose a clarifying structural move
 
-### Replace temporal coupling with an explicit lifecycle
+### Commit state before persistence
 
-Fragile:
-
-```python
-evaluate()
-save_checkpoint()
-append_log()
-```
-
-Clear:
+Prefer:
 
 ```python
 record = evaluate()
@@ -92,18 +107,11 @@ state.record(record)
 state.persist_if_needed()
 ```
 
-Persistence reads committed state; it never depends on a later append.
+over an ordering contract such as `evaluate -> save -> append` that callers must remember.
 
-### Replace inferred modes with explicit specifications
+### Represent semantic modes explicitly
 
-Fragile:
-
-```python
-if two_checkpoints_exist:
-    mode = "smoke"
-```
-
-Clear:
+Prefer:
 
 ```python
 RunSpec(mode="debug", stage="smoke")
@@ -111,125 +119,135 @@ RunSpec(mode="formal", stage="base")
 RunSpec(mode="formal", stage="extension")
 ```
 
-Debug and formal runs may share the same execution core, but their identity, output location, and acceptance rules should not be guessed afterward.
+over guessing identity from the number of checkpoints or existence of files. Debug and formal paths may share the same execution core while keeping distinct specifications and artifacts.
 
-### Replace free-form nested dictionaries with one canonical record
+### Build deep rather than numerous shallow modules
 
-Use a dataclass, typed mapping, table schema, or similarly lightweight representation when multiple modules rely on the same fields. Do not add a type merely to rename a dictionary; add it when it centralizes invariants or removes repeated interpretation.
+A module should hide a meaningful decision and make common use simpler. Avoid pass-through wrappers, classes that merely rename a dictionary, and helpers whose interfaces expose nearly all of their implementation.
 
-### Validate once at a meaningful boundary
+Do not split a cohesive function solely because it is long. Split when the new boundary hides knowledge, reduces coupling, or creates a testable concept.
 
-Validate an artifact when it enters formal analysis, then let downstream analysis and plotting consume the validated representation. Avoid making every plot rediscover missing seeds, normalize keys, infer stages, and check completeness independently.
-
-### Separate data production from interpretation
+### Establish one canonical data boundary
 
 Prefer:
 
 ```text
-raw artifacts -> validated canonical tables -> estimands -> figures/report
+raw artifacts -> validated canonical records/tables -> estimands -> figures/report
 ```
 
-Figures should not decide whether a run is formal, reconstruct experiment stages, or silently substitute missing values.
+Validate once when artifacts enter formal analysis. Downstream figures should not rediscover missing seeds, normalize schemas, infer stages, or silently substitute values.
 
-## Resist additive complexity
+### Distinguish duplicated text from duplicated knowledge
 
-Before adding a flag, field, validator, wrapper, mode, or exception handler, ask:
+Similar-looking code is not automatically the same concept. Remove duplication when copies encode one shared rule that must change together. Keep duplication temporarily when the pieces belong to different domains or are likely to evolve independently.
 
-1. What ambiguity forces this addition?
-2. Can that ambiguity be removed at its source?
-3. Will this addition create another legal combination of states?
-4. Can an existing branch or representation be deleted instead?
-5. Is this supporting a real current workflow or an imagined future one?
+Do not trade obvious, changeable code for a compressed abstraction whose parameters and conditionals recreate every original special case.
 
-Warning signs include:
+## Control abstraction and review cost
 
-- boolean-flag combinations whose meanings must be memorized;
-- `dict.get()` chains used to tolerate multiple schemas indefinitely;
-- broad exception handlers that convert contract failures into warnings;
-- comments claiming an invariant that the code does not enforce;
-- completion inferred from an output file merely existing;
-- analysis logic that guesses experimental identity from observed data;
-- functions whose correct use requires callers to know internal operation order;
-- tests that duplicate implementation branches rather than exercise public behavior.
+Before adding a flag, wrapper, type, validator, dependency, or configuration option, ask:
 
-Do not remove useful debug paths simply to make formal code look clean. Give debug runs an explicit specification and separate artifacts while reusing the same core operations.
+1. What ambiguity or dependency does this remove?
+2. Which existing branch, representation, or concept becomes unnecessary?
+3. Does the interface become simpler for its callers?
+4. Is this serving a current need or a speculative future one?
+5. Will the next likely change become more local?
 
-## Implement the smallest clarifying refactor
+If nothing can be deleted or hidden, the new abstraction may be architecture theater.
 
-Choose the smallest change that makes the important lifecycle or data flow explicit. A good refactor should usually achieve at least one of:
+Make changes reviewable:
 
-- fewer semantic branches;
-- fewer representations of the same fact;
-- fewer order-dependent operations;
-- fewer consumers of raw internal data;
-- fewer invalid states that can be constructed;
-- a shorter explanation of why the code is correct.
+- keep each change conceptually self-contained;
+- separate behavior-preserving refactors from feature changes when mixing them obscures the diff;
+- include the relevant tests with the change;
+- preserve a working state after each committed step;
+- prefer continuous improvement over blocking useful work for subjective perfection.
 
-Avoid broad rewrites when a narrow structural change solves the underlying problem. Preserve user-owned behavior, public interfaces, and unrelated work unless changing them is necessary for correctness.
+Classify review feedback as correctness-critical, design debt, or optional polish. Do not present personal style preferences as correctness requirements.
 
-## Verify behavior, not appearance
+## Comments and names
 
-Test the invariant that motivated the change. Useful tests include:
+Names should communicate domain meaning, units, and distinctions such as index versus count. Comments should preserve information the code cannot express well:
 
-- two paired runs begin from byte-identical initial state;
-- a persisted checkpoint contains the evaluation from its own step;
-- a completed artifact cannot be mistaken for partial output;
+- why a decision was made;
+- the invariant or contract;
+- non-obvious constraints and trade-offs;
+- the reason an apparently simpler alternative is unsafe.
+
+Do not use comments to narrate confusing code that can instead be simplified. Keep comments synchronized with behavior, and delete obsolete explanations and TODOs.
+
+## Verify the mental model
+
+Test the invariant that motivated the design. Prefer tests that would fail under the suspected defect:
+
+- paired runs begin from identical initial state;
+- a checkpoint contains the evaluation from its own step;
 - debug artifacts cannot enter formal analysis;
-- extension logic reaches a hard-cap terminal state rather than extending again;
-- canonical tables have the expected keys, row counts, and finite values;
-- repeated analysis of the same artifacts is deterministic;
-- removing a required record causes a loud boundary failure.
+- a terminal stage cannot transition back into extension;
+- canonical tables have expected identities, row counts, and finite values;
+- removing a required record produces a loud boundary failure;
+- repeated analysis of the same artifacts is deterministic.
 
-Avoid tests that only assert internal helper calls, repeat the production `if/elif` tree, or lock in incidental formatting.
+For algorithms or transformations with a slow, obvious implementation, use differential or stress testing:
 
-## Perform a fresh-reader self-review
+```text
+optimized implementation(input) == trusted reference(input)
+```
 
-After implementation, stop thinking like the author and inspect the code in this order:
+over many generated and adversarial cases. Record assumptions, complexity, and testing status close to reusable algorithmic code.
 
-1. **Entry point:** Can a reader identify the complete workflow quickly?
-2. **State model:** Are mode, stage, progress, and completion explicit?
-3. **Initialization:** Are seeds, configuration, and external inputs fixed before dependent objects are created?
-4. **Mutation order:** Is state updated before it is persisted or consumed?
-5. **Failure behavior:** Do validity failures stop formal execution rather than become warnings?
-6. **Data contract:** Is there one canonical representation between execution and analysis?
-7. **Boundaries:** Are debug, formal, base, extension, raw, analyzed, and presented outputs distinguishable?
-8. **Branch pressure:** Did the change reduce or increase the number of semantic paths?
-9. **Test quality:** Do tests protect outcomes and invariants rather than mirror implementation?
-10. **Explainability:** Can correctness be explained in a short causal chain without saying “provided callers remember to…”?
+Use assertions for programmer errors and invariants when appropriate to the failure cost. Do not copy safety-critical numerical rules, assertion quotas, or hard size limits into ordinary projects without justification. Assertions supplement a precise mental model; they do not replace it.
 
-Then inspect the diff and ask:
+Tests are production code too. Reject tests that duplicate the implementation's branch tree, pass when the behavior is broken, or require more reasoning than the code they protect.
 
-- What became simpler?
-- What new concept was introduced?
-- Which old concept or branch did it replace?
-- Is the new concept earning its cost?
-- Could the same result be achieved by reordering or deleting code?
+## Fresh-reader self-review
 
-If a refactor adds vocabulary and files without removing ambiguity, it is probably architecture theater rather than improvement.
+After implementation, inspect the whole affected path rather than only the diff:
+
+1. **Entry point:** Is the workflow discoverable?
+2. **Interfaces:** Are modules deep enough to justify their existence?
+3. **State:** Are mode, stage, progress, and completion explicit?
+4. **Initialization:** Are inputs and seeds fixed before dependent objects are created?
+5. **Mutation:** Is state committed before persistence or consumption?
+6. **Failures:** Do correctness failures stop at the right boundary?
+7. **Data contract:** Is execution interpreted once rather than by every consumer?
+8. **Coupling:** What knowledge leaks across module boundaries?
+9. **Branch pressure:** Did the change reduce semantic paths or merely redistribute them?
+10. **Tests:** Would they catch the defect, including invalid and boundary cases?
+11. **Performance:** Is important algorithmic or resource cost visible and measured?
+12. **Explainability:** Can correctness be explained without “provided callers remember to…”?
+
+Review the diff again and ask:
+
+- What became simpler for the next reader?
+- What new concept was introduced, and which old complexity did it replace?
+- Did an abstraction localize future change or merely reduce line count?
+- Could reordering, deletion, or a deeper existing module achieve the same result?
+- Are unrelated formatting and cleanup obscuring the semantic change?
 
 ## Give an honest verdict
 
-When reviewing code, avoid both politeness inflation and theatrical insults. Classify it as:
+Classify the code as:
 
-- **Elegant:** invariants and lifecycle are clear; extension is straightforward.
+- **Elegant:** important knowledge is hidden behind clear interfaces; lifecycle and invariants are visible.
 - **Serviceable:** understandable and safe enough, with localized debt.
 - **Brittle prototype:** works, but correctness relies on ordering, implicit state, or duplicated interpretation.
-- **Patch-accumulating system:** each change adds flags and compatibility branches; structural repair is due.
-- **Unmaintainable:** behavior cannot be changed confidently without broad unintended effects.
+- **Patch-accumulating system:** changes add flags and compatibility paths faster than they remove ambiguity.
+- **Unmaintainable:** ordinary changes cannot be made confidently without broad unintended effects.
 
-Support the verdict with concrete data-flow or state-model evidence. A clean folder tree is not proof of elegant code, and an imperfect research script is not automatically a “mess.”
+Support the verdict with state-flow, dependency, and change-amplification evidence. A clean directory tree is not proof of good design; a terse contest solution is not automatically maintainable; an imperfect research script is not automatically a mess.
 
-## Produce an actionable response
+## Produce an actionable review
 
 Return:
 
-1. the honest verdict and the evidence for it;
-2. the strongest parts worth preserving;
-3. the central structural problem, not a long undifferentiated bug list;
-4. whether to patch locally or refactor structurally, with the reason;
-5. the smallest proposed target architecture or data flow;
-6. what should be deleted, merged, or made explicit;
-7. the invariants and behavioral tests required before completion;
-8. remaining limitations or deliberately retained shortcuts.
+1. the verdict and strongest evidence;
+2. what should be preserved;
+3. the central structural problem rather than an undifferentiated bug list;
+4. patch versus restructure, with the reason;
+5. the smallest target data flow or ownership model;
+6. what becomes explicit and what can be deleted;
+7. the invariants and behavioral tests required;
+8. deliberately retained shortcuts and remaining limitations.
 
-Separate correctness-critical changes from aesthetic improvements. Under time or compute constraints, fix the state model and scientific validity first; do not spend the budget polishing low-risk abstractions.
+Separate correctness-critical work from design debt and optional polish. Under tight time or compute constraints, repair the state model and validity first; do not spend the budget on low-risk aesthetic uniformity.
