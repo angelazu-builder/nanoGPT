@@ -12,10 +12,11 @@ training_dynamics_research/recovery_study/
 ├── PREREGISTRATION.md   # Frozen experimental specification & decision rules
 ├── config.py            # Global hyperparameters, seeds, and decision thresholds
 ├── schedules.py         # Ascending, descending, and nonmonotonic schedule builders
-├── manifests.py         # RNG-decoupled scheduled & recovery batch manifests
-├── evaluation.py        # Nested validation (process panel + anchor panel) & sensitivity probe
-├── runner.py            # Execution runner with seed rotation order & MPS sync
-├── analyze.py           # Statistical analysis, paired differences, and stop/go decision rules
+├── manifests.py         # RNG-decoupled scheduled, recovery, & extended batch manifests
+├── evaluation.py        # Zero-redundancy nested evaluation (process panel + anchor panel)
+├── runner.py            # Execution runner with rotation, full state ckpts, & extension hook
+├── analyze.py           # Multi-horizon statistical analysis, transition shock, AUC, & plots
+├── test_study.py        # Unit tests covering manifests, schedules, & Case A-E decision rules
 └── README.md            # This documentation
 ```
 
@@ -28,6 +29,9 @@ results/recovery_study/
 ├── seed_42/{ascending,descending,nonmonotonic}/
 ├── seed_43/{ascending,descending,nonmonotonic}/
 ├── seed_44/{ascending,descending,nonmonotonic}/
+├── plots/
+│   ├── recovery_horizon_trajectories.png
+│   └── paired_seed_recovery.png
 └── summary.json
 ```
 
@@ -35,31 +39,41 @@ results/recovery_study/
 
 ## Quickstart & Execution Commands
 
-### 1. Run Unit Tests (Schedules, Manifests, & Verification)
+### 1. Run Unit Tests (Schedules, Manifests, & Synthetic Decisions)
 
 ```bash
-python -m unittest training_dynamics_research/recovery_study/test_study.py
+python3 -m unittest training_dynamics_research/recovery_study/test_study.py
 ```
 
 ### 2. Run Smoke Test (10 steps/block, 10 recovery steps, 1 seed)
 
 ```bash
-python -m training_dynamics_research.recovery_study.runner --smoke-test
+python3 -m training_dynamics_research.recovery_study.runner --smoke-test
 ```
 
 ### 3. Run Full Formal Experiment (3 arms × 3 seeds = 9 runs)
 
 ```bash
-python -m training_dynamics_research.recovery_study.runner
+python3 -m training_dynamics_research.recovery_study.runner
 ```
 
-*Note: Execution order rotates across seeds to prevent order-of-execution bias:*
-- `Seed 42`: ascending → descending → nonmonotonic
-- `Seed 43`: descending → nonmonotonic → ascending
-- `Seed 44`: nonmonotonic → ascending → descending
+*CLI Options:*
+- `--seed <int>`: Run only a specific seed (e.g. `--seed 42`)
+- `--arm <str>`: Run only a specific arm (e.g. `--arm ascending`)
+- `--overwrite`: Re-run and overwrite existing completed runs
 
-### 4. Analyze Results & Evaluate Preregistered Stop/Go Rules
+### 4. Trigger Adaptive Extension (if Case D is met)
+
+If `analyze.py` diagnoses Case D (active recovery, gap still decreasing):
 
 ```bash
-python -m training_dynamics_research.recovery_study.analyze
+python3 -m training_dynamics_research.recovery_study.runner --extend
 ```
+This loads each arm's `checkpoint_step_2500.pt`, preserves Adam moments and RNG states, and extends training with clamped `min_lr = 1e-4` up to step 3000 using the preregistered `extended_recovery_manifest`.
+
+### 5. Analyze Results & Generate Plots
+
+```bash
+python3 -m training_dynamics_research.recovery_study.analyze
+```
+Outputs statistical summaries, 4-horizon trajectories, transition shocks, AUCs, and saves figures to `results/recovery_study/plots/`.

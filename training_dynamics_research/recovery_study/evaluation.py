@@ -11,6 +11,7 @@ from .config import (
     FIXED_TARGET_LEN,
     CONTEXT_LENGTHS,
     VAL_CONTEXT,
+    N_PROCESS_SEQUENCES,
 )
 
 
@@ -57,33 +58,40 @@ def build_validation_tensors(val_data, start_indices, device):
 @torch.no_grad()
 def evaluate_panel(model, x_val, y_val, device, horizons=CONTEXT_LENGTHS):
     """
-    Evaluate validation panel (either 16 process sequences or 32 anchor sequences).
-    Scores ONLY the final FIXED_TARGET_LEN = 32 target positions for all horizons.
-    Returns per-sequence losses and summary metrics.
+    Evaluate validation panel with ZERO duplicate forwards:
+    1. Forward full context (256) once with diagnostics.
+    2. Reuse 256-step logits for horizon h=256 (no second forward!).
+    3. Forward sub-contexts only for h in [32, 64, 128].
+    4. Store BOTH mean_bpc and per-sequence seq_bpc for ALL horizons.
+    5. Extract token-level losses for h=32 and h=256 to provide context sensitivity directly.
     """
     model.eval()
     N_seq, T_seq = x_val.shape
     assert T_seq == VAL_CONTEXT, f"Expected validation context {VAL_CONTEXT}, got {T_seq}"
     
-    # 1. Forward full context (256) for general diagnostics
-    logits, loss, layer_hiddens, att_matrices = model(x_val, y_val, return_diagnostics=True)
+    target_len = FIXED_TARGET_LEN
+    y_targets = y_val[:, -target_len:]  # Shape: (N_seq, 32)
+    
+    # 1. Forward full context (256) once for both diagnostics and h=256 scoring
+    full_logits, _, layer_hiddens, att_matrices = model(x_val, y_val, return_diagnostics=True)
     
     avg_ranks = [compute_effective_rank(h) for h in layer_hiddens]
     mean_rank = float(np.mean(avg_ranks))
     avg_entropies = [compute_normalized_entropy(att) for att in att_matrices]
     mean_entropy = float(np.mean(avg_entropies))
     
-    # 2. Score each horizon h in [32, 64, 128, 256] on the final FIXED_TARGET_LEN targets
     horizon_results = {}
-    target_len = FIXED_TARGET_LEN
-    y_targets = y_val[:, -target_len:]  # Shape: (N_seq, 32)
+    token_losses = {}
     
     for h in horizons:
-        x_sub = x_val[:, -h:]  # Sub-sequence of length h
-        sub_logits, _ = model(x_sub, None)  # Shape: (N_seq, h, V)
-        scored_logits = sub_logits[:, -target_len:, :]  # Shape: (N_seq, 32, V)
-        
-        # Compute loss per sequence (mean over the 32 targets for each sequence)
+        if h == 256:
+            # Reuse full forward logits directly!
+            scored_logits = full_logits[:, -target_len:, :]
+        else:
+            x_sub = x_val[:, -h:]
+            sub_logits, _ = model(x_sub, None)
+            scored_logits = sub_logits[:, -target_len:, :]
+            
         N_s, Ts, V = scored_logits.shape
         loss_matrix = F.cross_entropy(
             scored_logits.reshape(N_s * Ts, V),
@@ -100,59 +108,53 @@ def evaluate_panel(model, x_val, y_val, device, horizons=CONTEXT_LENGTHS):
             "seq_bpc": seq_bpc,
         }
         
+        # Cache token-level losses for sensitivity probe (T=32 and T=256)
+        if h in [32, 256]:
+            token_losses[h] = (loss_matrix / math.log(2.0)).cpu().numpy().flatten()
+            
+    # Compute context sensitivity statistics if both 32 and 256 were scored
+    sensitivity = None
+    if 32 in token_losses and 256 in token_losses:
+        c_i = token_losses[32] - token_losses[256]
+        sensitivity = {
+            "c_i": c_i.tolist(),
+            "mean_c": float(np.mean(c_i)),
+            "median_c": float(np.median(c_i)),
+            "frac_gt_0_1": float(np.mean(c_i > 0.1)),
+            "token_bpc_32": token_losses[32].tolist(),
+            "token_bpc_256": token_losses[256].tolist(),
+        }
+        
     model.train()
     
     return {
-        "bpc": horizon_results[256]["mean_bpc"],  # Primary target horizon T=256
+        "bpc": horizon_results[256]["mean_bpc"],
         "seq_bpc": horizon_results[256]["seq_bpc"],
         "horizon_results": horizon_results,
         "mean_rank": mean_rank,
         "mean_entropy": mean_entropy,
+        "sensitivity": sensitivity,
     }
 
 
-@torch.no_grad()
-def evaluate_context_sensitivity(model, x_val, y_val, device):
+def slice_process_metrics_from_anchor(anchor_eval_result, n_process=N_PROCESS_SEQUENCES):
     """
-    Section 13: Same-target context intervention at global steps 2000 & 2500.
-    For each target position i in the final 32 tokens across all sequences:
-      ell_i(T) = -log2 P(x_i | c_T)
-      C_i = ell_i(32) - ell_i(256)
-    Returns:
-      token_losses: dict mapping T -> flat array of target token BPCs
-      C_i: array of bit differences
-      mean_C, median_C, frac_gt_0_1
+    Given evaluation results on the full 32-sequence anchor panel,
+    derive the exact 16-sequence process panel metrics without re-running forward passes!
+    Because the process panel is defined as the first 16 sequences of the anchor panel.
     """
-    model.eval()
-    target_len = FIXED_TARGET_LEN
-    y_targets = y_val[:, -target_len:]  # (N_seq, 32)
-    
-    token_losses = {}
-    for h in [32, 256]:
-        x_sub = x_val[:, -h:]
-        sub_logits, _ = model(x_sub, None)
-        scored_logits = sub_logits[:, -target_len:, :]
-        N_s, Ts, V = scored_logits.shape
-        loss_matrix = F.cross_entropy(
-            scored_logits.reshape(N_s * Ts, V),
-            y_targets.reshape(N_s * Ts),
-            reduction='none'
-        ).reshape(N_s, Ts)
-        token_bpc = (loss_matrix / math.log(2.0)).cpu().numpy().flatten()
-        token_losses[h] = token_bpc
+    proc_horizon_results = {}
+    for h, res in anchor_eval_result["horizon_results"].items():
+        proc_seq = res["seq_bpc"][:n_process]
+        proc_horizon_results[h] = {
+            "mean_bpc": float(np.mean(proc_seq)),
+            "seq_bpc": proc_seq,
+        }
         
-    c_i = token_losses[32] - token_losses[256]
-    mean_c = float(np.mean(c_i))
-    median_c = float(np.median(c_i))
-    frac_gt_0_1 = float(np.mean(c_i > 0.1))
-    
-    model.train()
-    
     return {
-        "c_i": c_i.tolist(),
-        "mean_c": mean_c,
-        "median_c": median_c,
-        "frac_gt_0_1": frac_gt_0_1,
-        "token_bpc_32": token_losses[32].tolist(),
-        "token_bpc_256": token_losses[256].tolist(),
+        "bpc": proc_horizon_results[256]["mean_bpc"],
+        "seq_bpc": proc_horizon_results[256]["seq_bpc"],
+        "horizon_results": proc_horizon_results,
+        "mean_rank": anchor_eval_result["mean_rank"],
+        "mean_entropy": anchor_eval_result["mean_entropy"],
     }
