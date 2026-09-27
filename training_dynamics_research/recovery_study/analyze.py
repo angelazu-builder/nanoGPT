@@ -1,6 +1,13 @@
 """
-Analysis & Statistical Evaluation for Context-Length Recovery Study
-Preregistered specification: Section 2, 3, 12, 13, 14, 15, 16
+Analysis, Hypothesis Testing, and Decision Engine for Context-Length Recovery Study
+Preregistered specification: Section 6, 8, 12, 13, 14, 15, 16, 17
+Amendment 001: PREREGISTRATION_AMENDMENT_001_FIGURES.md
+
+Decoupled architecture:
+1. load_and_validate_study(results_dir, allow_partial)
+2. tables = extract_study_tables(study, active_seeds)
+3. summary = compute_preregistered_estimands(tables, study, active_seeds)
+4. figures / tidy CSVs generated strictly from tables and summary
 """
 
 import os
@@ -8,57 +15,66 @@ import sys
 import json
 import math
 import argparse
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from scipy import stats
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 from .config import (
     SEEDS,
     ARMS,
-    CONTEXT_LENGTHS,
-    BASE_RESULTS_DIR,
-    SMOKE_RESULTS_DIR,
     PROCESS_EVAL_STEPS,
     ANCHOR_EVAL_STEPS,
+    CONTEXT_LENGTHS,
+    BASE_RESULTS_DIR,
+    MAX_STEPS,
+    HARD_CAP_STEPS,
     THRESHOLD_MIN_PRE_GAP,
     THRESHOLD_RECOVERY_RATIO,
     THRESHOLD_RESIDUAL_PERSISTENT,
     THRESHOLD_PLATEAU_250,
-    MAX_STEPS,
-    HARD_CAP_STEPS,
 )
-from .figures import export_tidy_csvs, generate_contract_figures
+from .core_types import StudyTables
+from .tables import extract_study_tables, export_tidy_csvs
+from .figures import plot_contract_figures
 
 
-def load_all_results(results_dir=BASE_RESULTS_DIR, seeds=None):
-    """Load results for available or specified seeds."""
-    if seeds is None:
-        found_seeds = []
-        for s in SEEDS:
-            all_arms_exist = True
-            for arm in ARMS:
-                res_file = os.path.join(results_dir, f"seed_{s}", arm, "run_results.json")
-                if not os.path.exists(res_file):
-                    all_arms_exist = False
-                    break
-            if all_arms_exist:
-                found_seeds.append(s)
-        if not found_seeds:
-            raise FileNotFoundError(f"No complete seed results found in {results_dir}")
-        seeds = found_seeds
-        
+def load_all_results(results_dir: str, seeds: Optional[List[int]] = None) -> Tuple[Dict[int, Dict[str, Any]], List[int]]:
+    """Loads all run_results.json across seeds and arms."""
     data = {}
+    if seeds is None:
+        candidate_seeds = []
+        if os.path.exists(results_dir):
+            for d in os.listdir(results_dir):
+                if d.startswith("seed_") and os.path.isdir(os.path.join(results_dir, d)):
+                    try:
+                        candidate_seeds.append(int(d.split("_")[1]))
+                    except ValueError:
+                        pass
+        seeds = sorted(candidate_seeds) if candidate_seeds else SEEDS
+
+    active_seeds = []
     for seed in seeds:
-        data[seed] = {}
+        seed_data = {}
         for arm in ARMS:
             res_file = os.path.join(results_dir, f"seed_{seed}", arm, "run_results.json")
-            if not os.path.exists(res_file):
-                raise FileNotFoundError(f"Missing results file: {res_file}")
-            with open(res_file, "r", encoding="utf-8") as f:
-                data[seed][arm] = json.load(f)
-    return data, seeds
+            if os.path.exists(res_file):
+                with open(res_file, "r") as f:
+                    seed_data[arm] = json.load(f)
+        if len(seed_data) > 0:
+            data[seed] = seed_data
+            active_seeds.append(seed)
+
+    if not active_seeds:
+        raise FileNotFoundError(f"No experiment results found in {results_dir}")
+        
+    return data, active_seeds
 
 
-def validate_formal_gate(data, active_seeds):
+def validate_formal_gate(data: Dict[int, Dict[str, Any]], active_seeds: List[int]):
     """
     Enforce strict Preregistration Gate for Formal Analysis Mode:
     - 3 seeds (42, 43, 44), 3 arms
@@ -129,7 +145,6 @@ def validate_formal_gate(data, active_seeds):
                     if not np.all(np.isfinite(a_seqs)):
                         raise ValueError(f"Formal Gate Failed: Anchor step {step} T={h} contains non-finite values")
                     
-                    # Reconstruction check: first 16 anchor sequences must match process mean
                     reconstructed_mean = float(np.mean(a_seqs[:16]))
                     proc_mean = p_res[h_val]["mean_bpc"]
                     if abs(reconstructed_mean - proc_mean) > 1e-4:
@@ -139,14 +154,9 @@ def validate_formal_gate(data, active_seeds):
                         )
                         
     print("✔ Formal Preregistration Gate Passed: All 9 runs, 17 checkpoints, nested panels, and finiteness verified.")
-    return True
 
 
-def compute_paired_stats(differences):
-    """
-    Given an array of paired differences across seeds (e.g. df=2 for n=3):
-    Compute mean, std, 95% paired t-interval, direction consistency.
-    """
+def compute_paired_stats(differences: List[float]) -> Dict[str, Any]:
     diffs = np.array(differences, dtype=float)
     n = len(diffs)
     mean_d = float(np.mean(diffs))
@@ -161,7 +171,6 @@ def compute_paired_stats(differences):
         ci_lower, ci_upper = mean_d, mean_d
         
     positive_count = int(np.sum(diffs > 0))
-    
     return {
         "raw_diffs": diffs.tolist(),
         "mean": mean_d,
@@ -174,8 +183,7 @@ def compute_paired_stats(differences):
     }
 
 
-def compute_auc(steps, values):
-    """Compute trapezoidal Area Under the Curve portably across NumPy versions."""
+def compute_auc(steps: List[int], values: List[float]) -> float:
     if len(steps) < 2:
         return 0.0
     x = np.array(steps, dtype=float)
@@ -183,119 +191,81 @@ def compute_auc(steps, values):
     return float(np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]) * 0.5))
 
 
-def analyze_recovery_study(
-    results_dir=BASE_RESULTS_DIR,
-    generate_plots=True,
-    seeds=None,
-    allow_partial=False,
-):
-    """
-    Comprehensive analysis pipeline fulfilling all preregistered requirements:
-    1. Formal Gate Validation (or explicit partial debug banner).
-    2. Primary confirmatory contrast: Delta^A(0), Delta^A(500), absolute recovery, ratio R.
-    3. Primary hypothesis test: R < 0.25 (75% recovery).
-    4. Multi-horizon trajectories and recovery matrices: T=32, 64, 128, 256.
-    5. Adaptive extension analysis preserving base endpoints.
-    6. Transition-local loss shocks.
-    7. Validation BPC AUC.
-    8. Nonmonotonic exploratory contrasts.
-    9. Context-sensitive target analysis.
-    10. Case A-E decision rule evaluation.
-    11. Amendment 001 contract figures & CSV tables.
-    """
+def load_and_validate_study(
+    results_dir: str = BASE_RESULTS_DIR,
+    seeds: Optional[List[int]] = None,
+    allow_partial: bool = False,
+) -> Tuple[Dict[int, Dict[str, Any]], List[int]]:
+    """Loads study data and applies the formal preregistration gate."""
     data, active_seeds = load_all_results(results_dir, seeds=seeds)
-    
     if not allow_partial:
         validate_formal_gate(data, active_seeds)
     else:
         print("\n" + "*" * 68)
         print("***   DEBUG / PARTIAL ANALYSIS — NOT A FORMAL RESULT             ***")
         print("*" * 68 + "\n")
-        
-    sample_run = data[active_seeds[0]]["ascending"]
+    return data, active_seeds
+
+
+def compute_preregistered_estimands(
+    tables: StudyTables,
+    raw_data: Dict[int, Dict[str, Any]],
+    active_seeds: List[int],
+) -> Dict[str, Any]:
+    """
+    Computes all preregistered estimands using pure canonical StudyTables:
+    - Primary confirmatory contrast: Delta^A(0), Delta^A(500), absolute recovery, ratio R
+    - Recovery slope and plateau status
+    - Multi-horizon endpoint matrices
+    - Adaptive extension statistics
+    - Transition shocks and AUC
+    - Case A-E decision rules
+    """
+    sample_run = raw_data[active_seeds[0]]["ascending"]
     anchor_steps = sorted([log["step"] for log in sample_run.get("anchor_logs", [])])
-    
     base_pre_step = 2000 if 2000 in anchor_steps else anchor_steps[0]
     base_post_step = 2500 if 2500 in anchor_steps else anchor_steps[-1]
     
-    # Check if all runs completed the one-time extension (step 3000)
+    checkpoints = sorted([log["step"] for log in sample_run.get("logs", [])])
+    
     has_complete_extension = all(
-        data[s][a].get("current_step", 0) >= HARD_CAP_STEPS
+        raw_data[s][a].get("current_step", 0) >= HARD_CAP_STEPS
         for s in active_seeds for a in ARMS
     )
-    
-    def get_anchor_log(run_data, target_step):
-        for a_log in run_data.get("anchor_logs", []):
-            if a_log["step"] == target_step:
-                return a_log
-        raise ValueError(f"Step {target_step} missing from anchor logs")
-        
-    def get_process_log(run_data, target_step):
-        for p_log in run_data.get("logs", []):
-            if p_log["step"] == target_step:
-                return p_log
-        raise ValueError(f"Step {target_step} missing from process logs")
 
-    # -------------------------------------------------------------
-    # 1. Base Pre/Post Analysis (Steps 2000 & 2500)
-    # -------------------------------------------------------------
+    # 1. Base Pre/Post Analysis (T=256)
     delta_pre_list = []
     delta_post_list = []
     delta_p250_list = []
     delta_p500_list = []
-    
     seed_details = {}
     
+    p250_step = 2250 if 2250 in checkpoints else (base_pre_step if base_pre_step in checkpoints else checkpoints[-1])
+    p500_step = 2500 if 2500 in checkpoints else base_post_step
+
     for seed in active_seeds:
-        asc_res = data[seed]["ascending"]
-        desc_res = data[seed]["descending"]
-        nonm_res = data[seed]["nonmonotonic"]
-        
-        asc_a_pre = get_anchor_log(asc_res, base_pre_step)
-        desc_a_pre = get_anchor_log(desc_res, base_pre_step)
-        nonm_a_pre = get_anchor_log(nonm_res, base_pre_step)
-        
-        asc_a_post = get_anchor_log(asc_res, base_post_step)
-        desc_a_post = get_anchor_log(desc_res, base_post_step)
-        nonm_a_post = get_anchor_log(nonm_res, base_post_step)
-        
-        d_pre = desc_a_pre["anchor_bpc"] - asc_a_pre["anchor_bpc"]
-        d_post = desc_a_post["anchor_bpc"] - asc_a_post["anchor_bpc"]
-        
+        d_pre = tables.anchor_bpc(seed, "descending", base_pre_step, 256) - tables.anchor_bpc(seed, "ascending", base_pre_step, 256)
+        d_post = tables.anchor_bpc(seed, "descending", base_post_step, 256) - tables.anchor_bpc(seed, "ascending", base_post_step, 256)
         delta_pre_list.append(d_pre)
         delta_post_list.append(d_post)
         
-        # Plateau steps for standard recovery: 2250 (k=250) and 2500 (k=500)
-        p250_step = 2250 if any(l["step"] == 2250 for l in asc_res["logs"]) else base_pre_step
-        p500_step = 2500 if any(l["step"] == 2500 for l in asc_res["logs"]) else base_post_step
-        
-        asc_p250 = get_process_log(asc_res, p250_step)
-        desc_p250 = get_process_log(desc_res, p250_step)
-        asc_p500 = get_process_log(asc_res, p500_step)
-        desc_p500 = get_process_log(desc_res, p500_step)
-        
-        d_p250 = desc_p250["process_bpc"] - asc_p250["process_bpc"]
-        d_p500 = desc_p500["process_bpc"] - asc_p500["process_bpc"]
-        
+        d_p250 = tables.process_bpc(seed, "descending", p250_step, 256) - tables.process_bpc(seed, "ascending", p250_step, 256)
+        d_p500 = tables.process_bpc(seed, "descending", p500_step, 256) - tables.process_bpc(seed, "ascending", p500_step, 256)
         delta_p250_list.append(d_p250)
         delta_p500_list.append(d_p500)
         
         seed_details[seed] = {
             "pre": {
-                "ascending": asc_a_pre["anchor_bpc"],
-                "descending": desc_a_pre["anchor_bpc"],
-                "nonmonotonic": nonm_a_pre["anchor_bpc"],
+                "ascending": tables.anchor_bpc(seed, "ascending", base_pre_step, 256),
+                "descending": tables.anchor_bpc(seed, "descending", base_pre_step, 256),
+                "nonmonotonic": tables.anchor_bpc(seed, "nonmonotonic", base_pre_step, 256),
                 "delta_D_A": d_pre,
-                "delta_N_A": nonm_a_pre["anchor_bpc"] - asc_a_pre["anchor_bpc"],
-                "delta_D_N": desc_a_pre["anchor_bpc"] - nonm_a_pre["anchor_bpc"],
             },
             "post_500": {
-                "ascending": asc_a_post["anchor_bpc"],
-                "descending": desc_a_post["anchor_bpc"],
-                "nonmonotonic": nonm_a_post["anchor_bpc"],
+                "ascending": tables.anchor_bpc(seed, "ascending", base_post_step, 256),
+                "descending": tables.anchor_bpc(seed, "descending", base_post_step, 256),
+                "nonmonotonic": tables.anchor_bpc(seed, "nonmonotonic", base_post_step, 256),
                 "delta_D_A": d_post,
-                "delta_N_A": nonm_a_post["anchor_bpc"] - asc_a_post["anchor_bpc"],
-                "delta_D_N": desc_a_post["anchor_bpc"] - nonm_a_post["anchor_bpc"],
             },
             "plateau_500": {
                 "delta_proc_250": d_p250,
@@ -306,7 +276,6 @@ def analyze_recovery_study(
         
     stats_pre = compute_paired_stats(delta_pre_list)
     stats_post_500 = compute_paired_stats(delta_post_list)
-    
     abs_recovery_500 = [pre - post for pre, post in zip(delta_pre_list, delta_post_list)]
     stats_abs_recovery_500 = compute_paired_stats(abs_recovery_500)
     
@@ -326,7 +295,7 @@ def analyze_recovery_study(
     mean_p500 = float(np.mean(delta_p500_list))
     slope_250 = mean_p250 - mean_p500
     is_plateaued_500 = abs(mean_p500 - mean_p250) < THRESHOLD_PLATEAU_250
-    
+
     base_results = {
         "pre_step": base_pre_step,
         "post_step": base_post_step,
@@ -340,10 +309,8 @@ def analyze_recovery_study(
         "recovery_slope_250": slope_250,
         "is_plateaued": is_plateaued_500,
     }
-    
-    # -------------------------------------------------------------
-    # 2. Extension Analysis (if completed to step 3000)
-    # -------------------------------------------------------------
+
+    # 2. Extension Analysis (Step 3000)
     extension_results = None
     if has_complete_extension:
         delta_ext_list = []
@@ -351,40 +318,30 @@ def analyze_recovery_study(
         delta_p1000_list = []
         
         for seed in active_seeds:
-            asc_a3000 = get_anchor_log(data[seed]["ascending"], 3000)
-            desc_a3000 = get_anchor_log(data[seed]["descending"], 3000)
-            d_ext = desc_a3000["anchor_bpc"] - asc_a3000["anchor_bpc"]
+            d_ext = tables.anchor_bpc(seed, "descending", 3000, 256) - tables.anchor_bpc(seed, "ascending", 3000, 256)
             delta_ext_list.append(d_ext)
-            
-            asc_run = data[seed]["ascending"]
-            desc_run = data[seed]["descending"]
-            p750 = get_process_log(desc_run, 2750)["process_bpc"] - get_process_log(asc_run, 2750)["process_bpc"]
-            p1000 = get_process_log(desc_run, 3000)["process_bpc"] - get_process_log(asc_run, 3000)["process_bpc"]
+            p750 = tables.process_bpc(seed, "descending", 2750, 256) - tables.process_bpc(seed, "ascending", 2750, 256)
+            p1000 = tables.process_bpc(seed, "descending", 3000, 256) - tables.process_bpc(seed, "ascending", 3000, 256)
             delta_p750_list.append(p750)
             delta_p1000_list.append(p1000)
-            
             seed_details[seed]["post_1000"] = {
-                "ascending": asc_a3000["anchor_bpc"],
-                "descending": desc_a3000["anchor_bpc"],
+                "ascending": tables.anchor_bpc(seed, "ascending", 3000, 256),
+                "descending": tables.anchor_bpc(seed, "descending", 3000, 256),
                 "delta_D_A": d_ext,
             }
             
         stats_ext = compute_paired_stats(delta_ext_list)
         late_slope = float(np.mean(delta_p750_list)) - float(np.mean(delta_p1000_list))
         is_plateaued_ext = abs(float(np.mean(delta_p1000_list)) - float(np.mean(delta_p750_list))) < THRESHOLD_PLATEAU_250
-        
         extension_results = {
             "stats_post_1000": stats_ext,
             "late_slope_250": late_slope,
             "is_plateaued_1000": is_plateaued_ext,
         }
-        
-    # -------------------------------------------------------------
-    # 3. Decision Rules (Section 16 & Amendment Extension Logic)
-    # -------------------------------------------------------------
+
+    # 3. Preregistered Decision Rules
     decision = {}
     if has_complete_extension:
-        # Decision at Hard Cap (Step 3000): NEVER return EXTEND_RECOVERY again!
         mean_ext = extension_results["stats_post_1000"]["mean"]
         late_slope = extension_results["late_slope_250"]
         all_three_pos = extension_results["stats_post_1000"]["positive_count"] == len(active_seeds)
@@ -409,7 +366,6 @@ def analyze_recovery_study(
             decision["verdict"] = "UNRESOLVED_OR_RECOVERED"
             decision["rationale"] = f"At step 3000 hard cap, residual mean Delta^A(1000) = {mean_ext:.4f} BPC."
     else:
-        # Standard decision on Base 2500 endpoints
         if abs(mean_pre) < THRESHOLD_MIN_PRE_GAP:
             decision["case"] = "Case A: pre-recovery gap does not replicate"
             decision["verdict"] = "STOP"
@@ -443,137 +399,138 @@ def analyze_recovery_study(
             decision["verdict"] = "UNRESOLVED"
             decision["rationale"] = "Pattern falls into boundary conditions."
 
-    # -------------------------------------------------------------
-    # 4. Multi-Horizon, Shock, AUC, and Contrasts
-    # -------------------------------------------------------------
-    checkpoints = [log["step"] for log in sample_run["logs"]]
-    
-    # Four-horizon endpoint matrices
-    horizon_endpoint_stats = {
-        h: {
-            "pre": compute_paired_stats([
-                get_anchor_log(data[s]["descending"], base_pre_step)["horizon_bpc"].get(h, get_anchor_log(data[s]["descending"], base_pre_step)["horizon_bpc"].get(str(h))) -
-                get_anchor_log(data[s]["ascending"], base_pre_step)["horizon_bpc"].get(h, get_anchor_log(data[s]["ascending"], base_pre_step)["horizon_bpc"].get(str(h)))
-                for s in active_seeds
-            ]),
-            "post_500": compute_paired_stats([
-                get_anchor_log(data[s]["descending"], base_post_step)["horizon_bpc"].get(h, get_anchor_log(data[s]["descending"], base_post_step)["horizon_bpc"].get(str(h))) -
-                get_anchor_log(data[s]["ascending"], base_post_step)["horizon_bpc"].get(h, get_anchor_log(data[s]["ascending"], base_post_step)["horizon_bpc"].get(str(h)))
-                for s in active_seeds
-            ]),
-        }
-        for h in CONTEXT_LENGTHS
-    }
-    
-    # Transition shocks
-    candidate_pairs = [
-        (500, 501), (1000, 1001), (1500, 1501), (2000, 2001),
-        (10, 11), (20, 21), (30, 31), (40, 41)
-    ]
-    valid_pairs = [p for p in candidate_pairs if p[0] in checkpoints and p[1] in checkpoints]
-    transition_shocks = {}
-    for s_pre, s_post in valid_pairs:
-        pair_key = f"{s_pre}->{s_post}"
-        transition_shocks[pair_key] = {}
-        for arm in ARMS:
-            arm_shocks = []
-            for seed in active_seeds:
-                p1 = get_process_log(data[seed][arm], s_pre)["process_bpc"]
-                p2 = get_process_log(data[seed][arm], s_post)["process_bpc"]
-                arm_shocks.append(p2 - p1)
-            transition_shocks[pair_key][arm] = {
-                "mean_shock_bpc": float(np.mean(arm_shocks)),
-                "raw_shocks": arm_shocks,
-            }
-            
-    # AUC Analysis
-    pre_steps = [s for s in checkpoints if s <= base_pre_step]
-    rec_steps = [s for s in checkpoints if s >= base_pre_step]
-    auc_results = {}
-    for arm in ARMS:
-        pre_aucs = [compute_auc(pre_steps, [get_process_log(data[s][arm], st)["process_bpc"] for st in pre_steps]) for s in active_seeds]
-        rec_aucs = [compute_auc(rec_steps, [get_process_log(data[s][arm], st)["process_bpc"] for st in rec_steps]) for s in active_seeds]
-        auc_results[arm] = {
-            "pre_recovery_auc": {"mean": float(np.mean(pre_aucs)), "raw": pre_aucs},
-            "recovery_auc": {"mean": float(np.mean(rec_aucs)), "raw": rec_aucs},
+    # 4. Multi-Horizon Endpoint Matrix
+    horizon_endpoint_stats = {}
+    for h in CONTEXT_LENGTHS:
+        h_pre_diffs = [tables.anchor_bpc(s, "descending", base_pre_step, h) - tables.anchor_bpc(s, "ascending", base_pre_step, h) for s in active_seeds]
+        h_post_diffs = [tables.anchor_bpc(s, "descending", base_post_step, h) - tables.anchor_bpc(s, "ascending", base_post_step, h) for s in active_seeds]
+        horizon_endpoint_stats[h] = {
+            "pre": compute_paired_stats(h_pre_diffs),
+            "post_500": compute_paired_stats(h_post_diffs),
+            "recovered": compute_paired_stats([pre - post for pre, post in zip(h_pre_diffs, h_post_diffs)]),
         }
 
-    # Context sensitivity pooled top-10% analysis
+    # 5. Validation BPC AUC
+    auc_results = {}
+    for arm in ARMS:
+        auc_results[arm] = {}
+        for h in CONTEXT_LENGTHS:
+            arm_h_aucs = []
+            for seed in active_seeds:
+                series = [tables.process_bpc(seed, arm, step, h) for step in checkpoints]
+                arm_h_aucs.append(compute_auc(checkpoints, series))
+            auc_results[arm][h] = {
+                "mean_auc": float(np.mean(arm_h_aucs)),
+                "raw_aucs": arm_h_aucs,
+            }
+
+    # 6. Context-Sensitivity Analysis
     sensitivity_analysis = {}
     for s_step in [str(base_pre_step), str(base_post_step)]:
         if s_step in sample_run.get("sensitivity_logs", {}):
             sens_stats = {}
             for arm in ARMS:
-                c_means = [data[s][arm]["sensitivity_logs"][s_step]["mean_c"] for s in active_seeds]
-                c_fracs = [data[s][arm]["sensitivity_logs"][s_step]["frac_gt_0_1"] for s in active_seeds]
+                c_means = [raw_data[s][arm]["sensitivity_logs"][s_step]["mean_c"] for s in active_seeds]
+                c_fracs = [raw_data[s][arm]["sensitivity_logs"][s_step]["frac_gt_0_1"] for s in active_seeds]
                 sens_stats[arm] = {
                     "mean_c": float(np.mean(c_means)),
                     "frac_gt_0_1": float(np.mean(c_fracs)),
                 }
             sensitivity_analysis[f"step_{s_step}"] = sens_stats
 
-    summary = {
+    return {
         "active_seeds": active_seeds,
+        "base_pre_step": base_pre_step,
+        "base_post_step": base_post_step,
+        "checkpoints": checkpoints,
         "has_complete_extension": has_complete_extension,
+        "stats_pre": stats_pre,
+        "stats_post_500": stats_post_500,
+        "stats_abs_recovery_500": stats_abs_recovery_500,
         "base_results": base_results,
         "extension_results": extension_results,
         "decision": decision,
         "horizon_endpoint_stats": horizon_endpoint_stats,
-        "transition_shocks": transition_shocks,
         "auc_results": auc_results,
         "sensitivity_analysis": sensitivity_analysis,
         "seed_details": seed_details,
     }
+
+
+def analyze_recovery_study(
+    results_dir: str = BASE_RESULTS_DIR,
+    generate_plots: bool = True,
+    seeds: Optional[List[int]] = None,
+    allow_partial: bool = False,
+) -> Dict[str, Any]:
+    """
+    Main entry point for analyzing Context-Length Recovery Study.
+    Executes the clean decoupled pipeline:
+    1. load_and_validate_study
+    2. extract_study_tables
+    3. compute_preregistered_estimands
+    4. export_tidy_csvs
+    5. plot_contract_figures
+    """
+    raw_data, active_seeds = load_and_validate_study(results_dir, seeds=seeds, allow_partial=allow_partial)
+    tables = extract_study_tables(raw_data, active_seeds)
+    summary = compute_preregistered_estimands(tables, raw_data, active_seeds)
     
     summary_path = os.path.join(results_dir, "summary.json")
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     print(f"Saved comprehensive summary to {summary_path}")
-
-    # -------------------------------------------------------------
-    # 5. Figures and Tidy Data CSV Exports (Amendment 001)
-    # -------------------------------------------------------------
+    
     if generate_plots:
+        figures_dir = os.path.join(results_dir, "figures")
         try:
-            figures_dir = os.path.join(results_dir, "figures")
-            export_tidy_csvs(data, active_seeds, checkpoints, base_pre_step, base_post_step, figures_dir)
-            generate_contract_figures(data, active_seeds, checkpoints, base_pre_step, base_post_step, figures_dir)
+            export_tidy_csvs(tables, figures_dir)
+            print(f"Generated contract CSVs in {os.path.join(figures_dir, 'data')}")
+            plot_contract_figures(tables, summary, active_seeds, summary["checkpoints"], figures_dir)
+            print(f"Generated contract figures in {figures_dir}")
         except Exception as e:
             if allow_partial:
                 print(f"DEBUG: Figure/CSV contract export failed: {e}")
             else:
                 raise
 
-    # Terminal Summary
+    # Terminal summary output
+    stats_pre = summary["stats_pre"]
+    stats_post_500 = summary["stats_post_500"]
+    stats_abs = summary["stats_abs_recovery_500"]
+    base_res = summary["base_results"]
+    decision = summary["decision"]
+    
     print("\n" + "=" * 68)
     print("CONTEXT-LENGTH RECOVERY STUDY: PREREGISTERED ANALYSIS SUMMARY")
     print("=" * 68)
     print(f"Active Seeds:           {active_seeds}")
     print(f"Pre-recovery Δ^A(0):    {stats_pre['mean']:+.4f} ± {stats_pre['std']:.4f} BPC  (95% CI: [{stats_pre['ci_95'][0]:+.4f}, {stats_pre['ci_95'][1]:+.4f}])")
     print(f"Post-recovery Δ^A(500):  {stats_post_500['mean']:+.4f} ± {stats_post_500['std']:.4f} BPC  (95% CI: [{stats_post_500['ci_95'][0]:+.4f}, {stats_post_500['ci_95'][1]:+.4f}])")
-    print(f"Absolute Recovered:     {stats_abs_recovery_500['mean']:+.4f} ± {stats_abs_recovery_500['std']:.4f} BPC")
-    if r_interpretable:
-        print(f"Recovery Ratio R:       {recovery_ratio_R:.3f} ({pct_recovered:.1f}% recovered) | Criterion R < 0.25: {recovery_ratio_R < THRESHOLD_RECOVERY_RATIO}")
+    print(f"Absolute Recovered:     {stats_abs['mean']:+.4f} ± {stats_abs['std']:.4f} BPC")
+    if base_res["r_interpretable"]:
+        print(f"Recovery Ratio R:       {base_res['recovery_ratio_R']:.3f} ({base_res['pct_recovered']:.1f}% recovered) | Criterion R < 0.25: {base_res['primary_hypothesis_satisfied']}")
     else:
         print(f"Recovery Ratio R:       N/A (|pre-gap| < {THRESHOLD_MIN_PRE_GAP})")
     print(f"Direction consistency:  {stats_post_500['direction_consistency']}")
-    print(f"Plateau condition:      {'SATISFIED' if is_plateaued_500 else 'ACTIVE RECOVERY'} (slope={slope_250:+.4f} BPC / 250 steps)")
-    if has_complete_extension:
+    print(f"Plateau condition:      {'SATISFIED' if base_res['is_plateaued'] else 'ACTIVE RECOVERY'} (slope={base_res['recovery_slope_250']:+.4f} BPC / 250 steps)")
+    if summary["has_complete_extension"]:
+        ext_res = summary["extension_results"]
         print("-" * 68)
-        print(f"Extension Δ^A(1000):    {extension_results['stats_post_1000']['mean']:+.4f} ± {extension_results['stats_post_1000']['std']:.4f} BPC")
-        print(f"Late Plateau Slope:     {extension_results['late_slope_250']:+.4f} BPC / 250 steps")
+        print(f"Extension Δ^A(1000):    {ext_res['stats_post_1000']['mean']:+.4f} ± {ext_res['stats_post_1000']['std']:.4f} BPC")
+        print(f"Late Plateau Slope:     {ext_res['late_slope_250']:+.4f} BPC / 250 steps")
     print("-" * 68)
     print("FOUR-HORIZON ENDPOINT MATRIX (Anchor Panel):")
     for h in CONTEXT_LENGTHS:
-        pre_h = horizon_endpoint_stats[h]["pre"]["mean"]
-        post_h = horizon_endpoint_stats[h]["post_500"]["mean"]
+        pre_h = summary["horizon_endpoint_stats"][h]["pre"]["mean"]
+        post_h = summary["horizon_endpoint_stats"][h]["post_500"]["mean"]
         print(f"  T={h:3d} | Pre: {pre_h:+.4f} BPC | Post: {post_h:+.4f} BPC | Recovered: {pre_h - post_h:+.4f} BPC")
     print("-" * 68)
     print(f"DECISION: {decision['case']}")
     print(f"VERDICT:  {decision['verdict']}")
     print(f"REASON:   {decision['rationale']}")
     print("=" * 68 + "\n")
-    
+
     return summary
 
 

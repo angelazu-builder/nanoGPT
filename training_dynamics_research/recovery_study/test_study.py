@@ -357,6 +357,60 @@ class TestRecoveryStudyDesign(unittest.TestCase):
         res3 = evaluate_extension_decision(0.015, 0.005, 3, True)
         self.assertEqual(res3, "UNRESOLVED_OR_RECOVERED")
 
+    def test_run_spec_and_tables_pipeline(self):
+        """Verify immutable RunSpec properties, initialize_run lifecycle, and StudyTables extraction."""
+        from .core_types import RunSpec, RunState
+        from .runner import make_run_spec, initialize_run
+        from .tables import extract_study_tables
+        
+        spec = make_run_spec(
+            arm="ascending",
+            seed=42,
+            total_steps=50,
+            is_smoke=True,
+            results_dir="results/recovery_study",
+        )
+        self.assertEqual(spec.arm, "ascending")
+        self.assertEqual(spec.seed, 42)
+        self.assertTrue(spec.is_smoke)
+        self.assertTrue("results/recovery_study_smoke" in spec.effective_results_dir)
+        
+        # Initialize run with overwrite=True produces fresh RunState with step 1
+        state = initialize_run(spec, device="cpu", overwrite=True)
+        self.assertIsInstance(state, RunState)
+        self.assertEqual(state.step, 1)
+        self.assertFalse(state.is_complete)
+        self.assertIsNotNone(state.model)
+        self.assertIsNotNone(state.optimizer)
+        
+        # Test StudyTables extraction from synthetic data
+        synthetic_study = {
+            42: {
+                "ascending": {
+                    "logs": [
+                        {
+                            "step": 2000,
+                            "horizon_results": {
+                                256: {"mean_bpc": 3.14, "seq_bpc": [3.14] * 16}
+                            }
+                        }
+                    ],
+                    "anchor_logs": [
+                        {
+                            "step": 2000,
+                            "horizon_results": {
+                                256: {"mean_bpc": 3.14, "seq_bpc": [3.14] * 32}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        tables = extract_study_tables(synthetic_study, [42])
+        self.assertAlmostEqual(tables.process_bpc(42, "ascending", 2000, 256), 3.14)
+        self.assertAlmostEqual(tables.anchor_bpc(42, "ascending", 2000, 256), 3.14)
+
 
 if __name__ == "__main__":
     unittest.main()
+
