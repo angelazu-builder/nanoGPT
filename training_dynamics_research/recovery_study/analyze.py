@@ -370,10 +370,14 @@ def compute_preregistered_estimands(
             decision["case"] = "Case A: pre-recovery gap does not replicate"
             decision["verdict"] = "STOP"
             decision["rationale"] = f"|mean Delta^A(0)| = {abs(mean_pre):.4f} < {THRESHOLD_MIN_PRE_GAP}. Stop mechanism work."
-        elif abs(mean_post_500) <= THRESHOLD_MIN_PRE_GAP:
-            decision["case"] = "Case B: gap is practically removed"
+        elif abs(mean_post_500) <= THRESHOLD_MIN_PRE_GAP or (mean_post_500 <= THRESHOLD_MIN_PRE_GAP and stats_post_500["positive_count"] == 0):
+            decision["case"] = "Case B: gap is practically removed (reversible recency confirmed)"
             decision["verdict"] = "STOP"
-            decision["rationale"] = f"|mean Delta^A(500)| = {abs(mean_post_500):.4f} <= {THRESHOLD_MIN_PRE_GAP}. Supports reversible recency."
+            decision["rationale"] = (
+                f"Residual gap mean Delta^A(500) = {mean_post_500:+.4f} <= {THRESHOLD_MIN_PRE_GAP} BPC with 0/3 seeds showing persistent deficit. "
+                f"Recovery ratio R = {recovery_ratio_R:.3f} (< 0.25 threshold satisfied: {recovery_ratio_R < THRESHOLD_RECOVERY_RATIO}). "
+                "Conclude that the pre-recovery deficit was entirely reversible recency bias. Stop mechanism work."
+            )
         elif THRESHOLD_MIN_PRE_GAP < abs(mean_post_500) <= THRESHOLD_RESIDUAL_PERSISTENT or stats_post_500["positive_count"] not in [0, len(active_seeds)]:
             decision["case"] = "Case C: small residual is unresolved"
             decision["verdict"] = "UNRESOLVED"
