@@ -662,3 +662,24 @@ Added full "External Critique Response" section to `technical_report_v3_analysis
 - `training_dynamics_research/technical_report_v3_analysis.md` — critique responses applied
 - `logbook.md` — this Phase 42 entry
 
+---
+
+## Phase 43 — Context-Length Recovery Study Preregistration Frozen (2026-09-27)
+
+**Action**: Formalized and froze the execution plan for the Context-Length Order Recovery Study (`04_recovery_study_plan.md`) into `training_dynamics_research/recovery_study/PREREGISTRATION.md`.
+
+### Preregistration Commit Metadata
+- **Preregistration File**: `training_dynamics_research/recovery_study/PREREGISTRATION.md`
+- **Frozen Commit Hash**: `f1bf7b7`
+- **Design Structure**: 3 arms × 3 paired seeds = 9 runs (Apple Silicon M3, 24GB unified memory)
+- **Primary Contrast**: Descending vs Ascending after matched 500-step recovery at $T=256$
+- **Control Arm**: Nonmonotonic (`64→256→32→128`), prespecified exploratory control
+- **Validation Architecture**: Nested design with 16-sequence process panel (17 checkpoints) and 32-sequence anchor panel (steps 2000, 2500, and 3000 if extended)
+- **Decision Rules**:
+  - Minimum interpretable pre-gap: $|\Delta^A(0)| \ge 0.02$ BPC
+  - Case B (Practically removed): $|\text{mean } \Delta^A(500)| \le 0.02$ BPC $\to$ Stop mechanism expansion
+  - Case C (Unresolved): $0.02 < |\text{mean } \Delta^A(500)| \le 0.03$ BPC $\to$ Report residual, do not claim persistent effect
+  - Case D (Active recovery): mean $\Delta^A(500) > 0.03$ and mean $\Delta^P(250) - \Delta^P(500) > 0.025$ $\to$ One-time 500-step extension to hard cap step 3000 at clamped $\text{min\_lr}=10^{-4}$
+  - Case E (Persistent-effect candidate): mean $\Delta^A(500) > 0.03$, 3/3 seeds positive, plateau $|\Delta^P(500) - \Delta^P(250)| < 0.025$ $\to$ Proceed to targeted optimizer-state experiment
+- **Manifest Architecture**: Decoupled scheduled namespace (`seed * 10_000 + T`) and recovery namespace (`seed * 10_000 + 9_999`), correct half-open interval sampling `[0, train_length - T)`
+
