@@ -325,34 +325,65 @@ Tests must verify scheduled-manifest equality across arms for each context and r
 
 ## 10. Validation design
 
-Create one fixed validation manifest:
+Create one fixed 32-sequence anchor manifest and define the process panel as its first 16 sequences:
 
 ```python
-N_VAL_SEQUENCES = 64
+N_PROCESS_SEQUENCES = 16
+N_ANCHOR_SEQUENCES = 32
 VAL_CONTEXT = 256
+
+anchor_manifest = generate_validation_manifest(
+    n_sequences=N_ANCHOR_SEQUENCES,
+    context_length=VAL_CONTEXT,
+    seed=VALIDATION_SEED,
+)
+process_manifest = anchor_manifest[:N_PROCESS_SEQUENCES]
 ```
 
-This provides four times as many evaluation sequences as the previous 16-sequence setup while remaining inexpensive on M3. It does not justify a prespecified claim that effects of ±0.01 BPC are detectable.
+The 16-sequence process panel is used at every preregistered checkpoint to estimate the shape of training and recovery dynamics. The 32-sequence anchor panel is used only at global steps 2000 and 2500 for the main pre/post estimates. Because the process panel is a fixed subset of the anchor panel, the process curves and anchor estimates refer to nested, not independently redrawn, validation targets.
+
+For each evaluation horizon, score the same final 32 target positions. The process panel therefore contains 512 scored target positions per horizon, and the anchor panel contains 1,024. These counts do not justify a prespecified claim that effects of ±0.01 BPC are detectable because targets within a sequence are correlated and training-seed uncertainty remains dominant.
 
 All arms, seeds, checkpoints, and context horizons use identical validation endpoints. Microbatching may change for memory reasons, but targets and scoring must not change.
 
-Store loss separately for each validation sequence. Estimate evaluation uncertainty by resampling sequences as blocks. Do not treat individual tokens in the same sequence as independent bootstrap samples.
+Store loss separately for each validation sequence. Estimate evaluation uncertainty by resampling sequences as blocks. Do not treat individual tokens in the same sequence as independent bootstrap samples. At steps 2000 and 2500, save all 32 per-sequence losses so the 16-sequence process estimate can be reconstructed from the same evaluation pass.
 
 ## 11. Evaluation checkpoints
 
-Routine validation occurs every 100 global steps. Add recovery evaluations at:
+Use exactly 17 process-evaluation checkpoints:
 
 ```python
-RECOVERY_EVAL_STEPS = [0, 10, 25, 50, 100, 200, 300, 400, 500]
+EVAL_STEPS = [
+    250,
+    500, 501,
+    750,
+    1000, 1001,
+    1250,
+    1500, 1501,
+    1750,
+    2000, 2001, 2010, 2050,
+    2100, 2250, 2500,
+]
 ```
 
-These correspond to global steps:
+Every checkpoint evaluates the fixed 16-sequence process panel at all four horizons:
 
 ```text
-2000, 2010, 2025, 2050, 2100, 2200, 2300, 2400, 2500
+T = 32, 64, 128, 256
 ```
 
-Save full model checkpoints at global steps 2000 and 2500. Save metrics, but not necessarily model weights, at intermediate recovery points.
+The checkpoint roles are:
+
+| Role | Steps |
+|---|---|
+| Within-block trajectory | 250, 750, 1250, 1750 |
+| Immediate transition response | 500/501, 1000/1001, 1500/1501 |
+| Recovery onset and early adaptation | 2000/2001, 2010, 2050 |
+| Recovery middle and endpoint | 2100, 2250, 2500 |
+
+At global steps 2000 and 2500, evaluate the full 32-sequence anchor panel at all four horizons. The first 16 sequences supply the process-panel value; all 32 supply the anchor value. Thus the study produces 17 distinct temporal matrices per seed, 51 raw seed-level matrices overall, and two higher-precision anchor matrices after aggregation.
+
+Save full model checkpoints at global steps 2000 and 2500. Save metrics, but not necessarily model weights, at the other 15 checkpoints. Do not add post-hoc checkpoints to improve the appearance of a curve; any additional evaluation must be labeled exploratory.
 
 ## 12. Metrics
 
