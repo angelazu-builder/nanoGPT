@@ -92,7 +92,7 @@ Evidence is considered sufficient to justify a subsequent mechanism experiment o
 3. the mean gap has approximately plateaued:
 
    \[
-   |\Delta^{P}(500)-\Delta^{P}(400)|<0.01\ \mathrm{BPC};
+   |\Delta^{P}(500)-\Delta^{P}(250)|<0.025\ \mathrm{BPC};
    \]
 
 4. no run failed validity or reproducibility checks.
@@ -118,6 +118,16 @@ If \(|\Delta^{A}(0)|<0.02\), the denominator of the recovery ratio is too small 
 \]
 
 Thus 0.03 BPC corresponds to roughly a 2.1% perplexity ratio. It is the minimum residual effect considered large enough to justify spending additional compute on a mechanism study. It is not a significance boundary or a threshold derived from prior literature.
+
+### 0.025 BPC over 250 steps: late-recovery slope threshold
+
+The compact evaluation design observes late recovery at relative steps 250 and 500. The original slope criterion of 0.01 BPC per 100 recovery steps therefore scales to:
+
+\[
+0.01\times\frac{250}{100}=0.025\ \mathrm{BPC}.
+\]
+
+A decrease greater than 0.025 BPC over the final 250-step window indicates that recovery is still materially progressing. An absolute change below 0.025 BPC is treated as an approximate plateau for the stop/go decision. The same 250-step window and threshold apply at extension steps 750–1000.
 
 ## 4. Formal experimental arms
 
@@ -369,7 +379,7 @@ EVAL_STEPS = [
     1500, 1501,
     1750,
     2000, 2001, 2010, 2050,
-    2100, 2400, 2500,
+    2100, 2250, 2500,
 ]
 ```
 
@@ -386,7 +396,7 @@ The checkpoint roles are:
 | Within-block trajectory | 250, 750, 1250, 1750 |
 | Immediate transition response | 500/501, 1000/1001, 1500/1501 |
 | Recovery onset and early adaptation | 2000/2001, 2010, 2050 |
-| Recovery middle, plateau check, and endpoint | 2100, 2400, 2500 |
+| Recovery middle, plateau check, and endpoint | 2100, 2250, 2500 |
 
 At global steps 2000 and 2500, evaluate the full 32-sequence anchor panel at all four horizons. The first 16 sequences supply the process-panel value; all 32 supply the anchor value. Thus the study produces 17 distinct temporal matrices per seed, 51 raw seed-level matrices overall, and two higher-precision anchor matrices after aggregation.
 
@@ -503,7 +513,7 @@ If \(0.02<|\mathrm{mean}\ \Delta^{A}(500)|\le0.03\) BPC, or anchor seed directio
 
 ### Case D: gap remains large but is still recovering
 
-If mean \(\Delta^{A}(500)>0.03\) and mean \(\Delta^{P}(400)-\Delta^{P}(500)>0.01\), the 500-step recovery is insufficient. Extend **all three arms for all three seeds exactly once** by another 500 matched `T=256` steps. The experiment has a hard cap at global step 3000.
+If mean \(\Delta^{A}(500)>0.03\) and mean \(\Delta^{P}(250)-\Delta^{P}(500)>0.025\), the 500-step recovery is insufficient. Extend **all three arms for all three seeds exactly once** by another 500 matched `T=256` steps. The experiment has a hard cap at global step 3000. The 0.025 threshold over 250 recovery steps preserves the original slope criterion of 0.01 BPC per 100 steps.
 
 During steps 2501–3000:
 
@@ -515,7 +525,7 @@ During steps 2501–3000:
 - evaluate the 32-sequence anchor panel at step 3000;
 - save a full checkpoint at step 3000.
 
-At the hard cap, assess the final 100-step plateau with \(|\Delta^{P}(1000)-\Delta^{P}(900)|\). If the gap is still materially decreasing, report that slow recovery and persistent path dependence remain unresolved; do not extend again.
+At the hard cap, assess the final 250-step plateau with \(|\Delta^{P}(1000)-\Delta^{P}(750)|<0.025\). If the gap is still materially decreasing by more than 0.025 BPC over that interval, report that slow recovery and persistent path dependence remain unresolved; do not extend again.
 
 ### Case E: persistent-effect candidate
 
@@ -523,10 +533,10 @@ Proceed to a targeted optimizer-state experiment only if:
 
 - mean \(\Delta^{A}(500)>0.03\);
 - `3/3` paired seeds have positive \(\Delta^{A}(500)\);
-- \(|\Delta^{P}(500)-\Delta^{P}(400)|<0.01\);
+- \(|\Delta^{P}(500)-\Delta^{P}(250)|<0.025\);
 - all validity checks pass.
 
-If the one-time extension was triggered, replace the 500-step criteria above with the corresponding step-1000 anchor residual and process-panel plateau at recovery steps 900–1000. Persistence is always qualified as persistence under matched `T=256` training at the fixed minimum learning rate.
+If the one-time extension was triggered, replace the 500-step criteria above with the corresponding step-1000 anchor residual and process-panel plateau at recovery steps 750–1000. Persistence is always qualified as persistence under matched `T=256` training at the fixed minimum learning rate.
 
 The next experiment should initially test only:
 
@@ -566,7 +576,7 @@ Before formal training, freeze:
 - validation manifest;
 - primary, secondary, and exploratory metrics;
 - recovery checkpoints;
-- the 0.02, 0.25, 0.03, and 0.01 decision thresholds;
+- the 0.02, 0.25, 0.03, and 0.025 decision thresholds;
 - the one-time adaptive-extension rule, hard cap at step 3000, fixed `min_lr = 1e-4`, extension checkpoints, and extended-recovery manifest namespace;
 - run exclusion criteria;
 - code commit and environment metadata.
