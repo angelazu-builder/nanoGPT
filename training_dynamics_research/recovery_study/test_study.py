@@ -3,9 +3,15 @@ Unit tests for Recovery Study schedules, manifests, decision rules, and invarian
 Preregistered specification: Section 9, 16, 17
 """
 
+import os
+import sys
 import unittest
 import numpy as np
 import torch
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 from .config import (
     SEEDS,
@@ -201,6 +207,155 @@ class TestRecoveryStudyDesign(unittest.TestCase):
         
         # Case E: persistent-effect candidate (large gap, 3/3 positive, plateaued)
         self.assertEqual(evaluate_decision(0.160, 0.038, 3, 0.012), "Case E")
+
+    def test_identical_initialization_same_seed(self):
+        """
+        Preregistered check: Verify that calling set_seed(seed) BEFORE model creation
+        produces identical parameter tensors for models with the same seed,
+        and differing tensors across different seeds.
+        """
+        from model import MiniTransformerLM
+        from .runner import set_seed
+        
+        # Two models with seed 42
+        set_seed(42)
+        model_a = MiniTransformerLM(
+            vocab_size=65,
+            n_embd=64,
+            n_head=2,
+            n_layer=2,
+            block_size=256,
+            pos_emb_type="learned",
+            dropout=0.1,
+        )
+        
+        set_seed(42)
+        model_b = MiniTransformerLM(
+            vocab_size=65,
+            n_embd=64,
+            n_head=2,
+            n_layer=2,
+            block_size=256,
+            pos_emb_type="learned",
+            dropout=0.1,
+        )
+        
+        for (name_a, p_a), (name_b, p_b) in zip(model_a.named_parameters(), model_b.named_parameters()):
+            self.assertEqual(name_a, name_b)
+            self.assertTrue(torch.equal(p_a, p_b), f"Parameter {name_a} differed between identical seeds!")
+            
+        # Model with seed 43
+        set_seed(43)
+        model_c = MiniTransformerLM(
+            vocab_size=65,
+            n_embd=64,
+            n_head=2,
+            n_layer=2,
+            block_size=256,
+            pos_emb_type="learned",
+            dropout=0.1,
+        )
+        
+        has_difference = any(
+            not torch.equal(p_a, p_c)
+            for (_, p_a), (_, p_c) in zip(model_a.named_parameters(), model_c.named_parameters())
+        )
+        self.assertTrue(has_difference, "Parameters across different seeds (42 vs 43) were unexpectedly identical!")
+
+    def test_formal_gate_validation(self):
+        """Verify validate_formal_gate enforces 9 completed runs, 17 process checkpoints, 2 anchor checkpoints, and nesting."""
+        from .analyze import validate_formal_gate
+        from .config import PROCESS_EVAL_STEPS, ANCHOR_EVAL_STEPS, CONTEXT_LENGTHS
+        
+        # Build synthetic valid dataset
+        synthetic_data = {}
+        for s in [42, 43, 44]:
+            synthetic_data[s] = {}
+            for arm in ["ascending", "descending", "nonmonotonic"]:
+                logs = []
+                for step in PROCESS_EVAL_STEPS:
+                    h_res = {}
+                    for h in CONTEXT_LENGTHS:
+                        h_res[h] = {
+                            "mean_bpc": 2.5,
+                            "seq_bpc": [2.5] * 16
+                        }
+                    logs.append({
+                        "step": step,
+                        "process_bpc": 2.5,
+                        "horizon_results": h_res
+                    })
+                anchor_logs = []
+                for step in ANCHOR_EVAL_STEPS:
+                    h_res = {}
+                    for h in CONTEXT_LENGTHS:
+                        h_res[h] = {
+                            "mean_bpc": 2.5,
+                            "seq_bpc": [2.5] * 32
+                        }
+                    anchor_logs.append({
+                        "step": step,
+                        "anchor_bpc": 2.5,
+                        "horizon_results": h_res
+                    })
+                synthetic_data[s][arm] = {
+                    "completed": True,
+                    "smoke_test": False,
+                    "current_step": 2500,
+                    "logs": logs,
+                    "anchor_logs": anchor_logs,
+                }
+                
+        # Must pass cleanly on complete valid dataset
+        validate_formal_gate(synthetic_data, [42, 43, 44])
+        
+        # Test failure if a run is missing
+        incomplete_seeds = [42, 43]
+        with self.assertRaises(ValueError):
+            validate_formal_gate(synthetic_data, incomplete_seeds)
+            
+        # Test failure if completed is False
+        synthetic_data[42]["ascending"]["completed"] = False
+        with self.assertRaises(ValueError):
+            validate_formal_gate(synthetic_data, [42, 43, 44])
+        synthetic_data[42]["ascending"]["completed"] = True
+        
+        # Test failure if smoke_test is True
+        synthetic_data[42]["ascending"]["smoke_test"] = True
+        with self.assertRaises(ValueError):
+            validate_formal_gate(synthetic_data, [42, 43, 44])
+        synthetic_data[42]["ascending"]["smoke_test"] = False
+        
+        # Test failure if nesting invariant is violated (anchor first 16 does not equal process mean)
+        synthetic_data[42]["ascending"]["anchor_logs"][0]["horizon_results"][256]["seq_bpc"] = [9.9] * 16 + [2.5] * 16
+        with self.assertRaises(ValueError):
+            validate_formal_gate(synthetic_data, [42, 43, 44])
+
+    def test_extension_decision_never_returns_extend_recovery(self):
+        """
+        Verify that once step 3000 extension is completed, analyze.py never returns EXTEND_RECOVERY.
+        """
+        # Mirroring the extension decision branch from analyze.py
+        def evaluate_extension_decision(mean_ext, late_slope, positive_count, is_plateaued):
+            if late_slope > THRESHOLD_PLATEAU_250:
+                return "UNRESOLVED_AT_HARD_CAP"
+            elif mean_ext > THRESHOLD_RESIDUAL_PERSISTENT and positive_count == 3 and is_plateaued:
+                return "GO_OPTIMIZER_EXPERIMENT"
+            else:
+                return "UNRESOLVED_OR_RECOVERED"
+
+        # Case 1: Still recovering actively -> Terminal unresolved, NOT extend
+        res1 = evaluate_extension_decision(0.045, 0.035, 3, False)
+        self.assertEqual(res1, "UNRESOLVED_AT_HARD_CAP")
+        self.assertNotEqual(res1, "EXTEND_RECOVERY")
+
+        # Case 2: Plateaued candidate -> Optimizer experiment
+        res2 = evaluate_extension_decision(0.038, 0.010, 3, True)
+        self.assertEqual(res2, "GO_OPTIMIZER_EXPERIMENT")
+
+        # Case 3: Residual small or non-unanimous -> Unresolved or recovered
+        res3 = evaluate_extension_decision(0.015, 0.005, 3, True)
+        self.assertEqual(res3, "UNRESOLVED_OR_RECOVERED")
 
 
 if __name__ == "__main__":

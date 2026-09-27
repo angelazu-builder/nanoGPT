@@ -95,3 +95,4 @@ THRESHOLD_PLATEAU_250 = 0.025          # BPC per 250 recovery steps (preserves 0
 
 # Results Storage
 BASE_RESULTS_DIR = "results/recovery_study"
+SMOKE_RESULTS_DIR = "results/recovery_study_smoke"

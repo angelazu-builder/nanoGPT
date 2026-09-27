@@ -6,6 +6,9 @@ Preregistered specification: PREREGISTRATION_AMENDMENT_001_FIGURES.md
 import os
 import csv
 import numpy as np
+
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 ARM_COLORS = {
@@ -111,7 +114,10 @@ def export_tidy_csvs(data, active_seeds, checkpoints, pre_step, post_step, figur
             "seed", "arm", "transition", "step_pre", "step_post",
             "evaluation_horizon", "shock_bpc"
         ])
-        candidate_pairs = [(500, 501), (1000, 1001), (1500, 1501), (2000, 2001)]
+        candidate_pairs = [
+            (500, 501), (1000, 1001), (1500, 1501), (2000, 2001),
+            (10, 11), (20, 21), (30, 31), (40, 41)
+        ]
         valid_pairs = [p for p in candidate_pairs if p[0] in checkpoints and p[1] in checkpoints]
         for s_pre, s_post in valid_pairs:
             pair_label = f"{s_pre}->{s_post}"
@@ -134,13 +140,18 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
     os.makedirs(figures_dir, exist_ok=True)
     arms = ["ascending", "descending", "nonmonotonic"]
     horizons = [32, 64, 128, 256]
+    steps_arr = np.array(checkpoints)
+    
+    # Check if extended to step 3000
+    has_extension = any(
+        any(l["step"] == 3000 for l in data[s][a].get("anchor_logs", []))
+        for s in active_seeds for a in arms
+    )
     
     # -------------------------------------------------------------
     # Main Figure 1 — Training trajectories by evaluation horizon
     # -------------------------------------------------------------
     fig, axes = plt.subplots(2, 2, figsize=(14, 10), sharex=True, sharey=True)
-    steps_arr = np.array(checkpoints)
-    
     for idx, h in enumerate(horizons):
         ax = axes[idx // 2, idx % 2]
         h_str = str(h)
@@ -169,8 +180,7 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
             
     fig.suptitle("Main Figure 1: Training Trajectories by Evaluation Horizon", fontsize=14)
     plt.tight_layout()
-    fig1_path = os.path.join(figures_dir, "main_01_training_trajectories_by_horizon.png")
-    plt.savefig(fig1_path, dpi=200)
+    plt.savefig(os.path.join(figures_dir, "main_01_training_trajectories_by_horizon.png"), dpi=200)
     plt.close()
     
     # -------------------------------------------------------------
@@ -201,14 +211,21 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
             plt.plot(np.array(rec_steps) - pre_step, mean_gap, color=HORIZON_COLORS[h], lw=2.5, label=f"T={h}")
             
         plt.axhline(y=0.0, color="black", linestyle=":", lw=1)
-        plt.axhline(y=0.03, color="red", linestyle=":", label="Persistent 0.03 BPC")
+        # Explicit annotation: threshold applies strictly to primary T=256 anchor endpoint
+        plt.axhline(y=0.03, color="red", linestyle=":", label="Primary T=256 Decision Threshold (0.03 BPC)")
+        for v_k in [0, 250, 500]:
+            if v_k <= (rec_steps[-1] - pre_step):
+                plt.axvline(x=v_k, color="gray", linestyle="--", alpha=0.5)
+        if has_extension:
+            for v_k in [750, 1000]:
+                if v_k <= (rec_steps[-1] - pre_step):
+                    plt.axvline(x=v_k, color="gray", linestyle="--", alpha=0.5)
         plt.xlabel("Recovery Step k")
         plt.ylabel("Δ_h^P(k) [Descending − Ascending BPC]")
         plt.title("Main Figure 2: Recovery Gap by Evaluation Horizon")
         plt.legend(loc="upper right")
         plt.grid(True, alpha=0.3)
-        fig2_path = os.path.join(figures_dir, "main_02_recovery_gap_by_horizon.png")
-        plt.savefig(fig2_path, dpi=200, bbox_inches="tight")
+        plt.savefig(os.path.join(figures_dir, "main_02_recovery_gap_by_horizon.png"), dpi=200, bbox_inches="tight")
         plt.close()
         
     # -------------------------------------------------------------
@@ -231,7 +248,6 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
     mat_2000 = get_anchor_matrix(pre_step)
     mat_2500 = get_anchor_matrix(post_step)
     
-    # Common absolute limits
     vmin = min(mat_2000.min(), mat_2500.min())
     vmax = max(mat_2000.max(), mat_2500.max())
     
@@ -248,8 +264,7 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
             for j in range(4):
                 plt.text(j, i, f"{mat[i, j]:.4f}", ha="center", va="center", color="white" if mat[i, j] < (vmin + vmax)/2 else "black")
         plt.title(title)
-        p_path = os.path.join(figures_dir, fname)
-        plt.savefig(p_path, dpi=200, bbox_inches="tight")
+        plt.savefig(os.path.join(figures_dir, fname), dpi=200, bbox_inches="tight")
         plt.close()
         
     # -------------------------------------------------------------
@@ -261,7 +276,7 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
     plt.imshow(change_mat, cmap="coolwarm", vmin=-abs_max, vmax=abs_max, aspect="auto")
     plt.colorbar(label="Δ BPC (Post − Pre)")
     plt.xticks(range(4), [f"T={h}" for h in horizons])
-    plt.yticks(range(3), arms)
+    plt.yticks(range(3), [f"{a} (exploratory)" if a == "nonmonotonic" else a for a in arms])
     for i in range(3):
         for j in range(4):
             val = change_mat[i, j]
@@ -272,12 +287,63 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
     plt.close()
     
     # -------------------------------------------------------------
+    # Appendix A1 — Transition-Local Shock
+    # -------------------------------------------------------------
+    candidate_pairs = [
+        (500, 501), (1000, 1001), (1500, 1501), (2000, 2001),
+        (10, 11), (20, 21), (30, 31), (40, 41)
+    ]
+    valid_pairs = [p for p in candidate_pairs if p[0] in checkpoints and p[1] in checkpoints]
+    if valid_pairs:
+        fig, axes = plt.subplots(1, len(valid_pairs), figsize=(4 * len(valid_pairs), 4), sharey=True)
+        if len(valid_pairs) == 1:
+            axes = [axes]
+        for p_idx, (s_pre, s_post) in enumerate(valid_pairs):
+            ax = axes[p_idx]
+            bar_w = 0.25
+            for a_idx, arm in enumerate(arms):
+                mean_shocks = []
+                for h_idx, h in enumerate(horizons):
+                    h_str = str(h)
+                    shocks = []
+                    for seed in active_seeds:
+                        l1 = next(l for l in data[seed][arm]["logs"] if l["step"] == s_pre)
+                        l2 = next(l for l in data[seed][arm]["logs"] if l["step"] == s_post)
+                        v1 = l1["horizon_bpc"].get(h, l1["horizon_bpc"].get(h_str))
+                        v2 = l2["horizon_bpc"].get(h, l2["horizon_bpc"].get(h_str))
+                        shocks.append(v2 - v1)
+                    mean_shocks.append(np.mean(shocks))
+                    # Plot raw seed points
+                    for sk in shocks:
+                        ax.scatter(h_idx + (a_idx - 1) * bar_w, sk, color=ARM_COLORS[arm], alpha=0.4, s=15, zorder=3)
+                ax.bar(np.arange(4) + (a_idx - 1) * bar_w, mean_shocks, width=bar_w, color=ARM_COLORS[arm], alpha=0.7, label=arm if p_idx == 0 else "")
+            ax.set_xticks(range(4))
+            ax.set_xticklabels([f"T={h}" for h in horizons])
+            ax.set_title(f"Transition {s_pre}→{s_post}")
+            ax.axhline(y=0.0, color="black", linestyle=":", lw=1)
+            ax.grid(True, alpha=0.25)
+        axes[0].set_ylabel("Shock BPC (Post − Pre)")
+        fig.suptitle("Appendix Figure A1: Transition-Local Loss Shock", fontsize=13)
+        axes[0].legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(figures_dir, "appendix_A1_transition_shock.png"), dpi=200)
+        plt.close()
+
+    # -------------------------------------------------------------
     # Appendix A2 — Context Profiles (Step 2000 vs 2500)
     # -------------------------------------------------------------
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-    for ax, mat, title in [(ax1, mat_2000, f"Step {pre_step}"), (ax2, mat_2500, f"Step {post_step}")]:
+    for ax, step_t, mat, title in [(ax1, pre_step, mat_2000, f"Step {pre_step}"), (ax2, post_step, mat_2500, f"Step {post_step}")]:
         for r_idx, arm in enumerate(arms):
-            ax.plot([0, 1, 2, 3], mat[r_idx, :], marker="o", color=ARM_COLORS[arm], lw=2, label=arm)
+            # Raw seed points
+            for seed in active_seeds:
+                a_log = next((l for l in data[seed][arm].get("anchor_logs", []) if l["step"] == step_t), None)
+                if a_log:
+                    seed_vals = [a_log["horizon_bpc"].get(h, a_log["horizon_bpc"].get(str(h))) for h in horizons]
+                    ax.plot([0, 1, 2, 3], seed_vals, color=ARM_COLORS[arm], alpha=0.3, lw=1)
+                    ax.scatter([0, 1, 2, 3], seed_vals, color=ARM_COLORS[arm], alpha=0.5, s=20)
+            # 3-seed mean line
+            ax.plot([0, 1, 2, 3], mat[r_idx, :], marker="o", color=ARM_COLORS[arm], lw=2.5, label=arm)
         ax.set_xticks([0, 1, 2, 3])
         ax.set_xticklabels([f"T={h}" for h in horizons])
         ax.set_xlabel("Evaluation Horizon")
@@ -285,7 +351,7 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
         ax.set_title(title)
         ax.grid(True, alpha=0.3)
         ax.legend()
-    fig.suptitle("Appendix Figure A2: Context Profiles Before and After Recovery")
+    fig.suptitle("Appendix Figure A2: Context Profiles Before and After Recovery", fontsize=13)
     plt.tight_layout()
     plt.savefig(os.path.join(figures_dir, "appendix_A2_context_profiles.png"), dpi=200)
     plt.close()
@@ -294,15 +360,44 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
     # Appendix A3 — Paired Seed Endpoints
     # -------------------------------------------------------------
     plt.figure(figsize=(7, 5))
+    x_ticks = [0, 1]
+    x_labels = [f"Pre (Step {pre_step})", f"Post (Step {post_step})"]
+    if has_extension:
+        x_ticks.append(2)
+        x_labels.append("Post-Ext (Step 3000)")
+        
+    diffs_pre = []
+    diffs_post = []
+    diffs_ext = []
+    
     for seed in active_seeds:
         a_pre = next(l for l in data[seed]["ascending"]["anchor_logs"] if l["step"] == pre_step)["anchor_bpc"]
         d_pre = next(l for l in data[seed]["descending"]["anchor_logs"] if l["step"] == pre_step)["anchor_bpc"]
         a_post = next(l for l in data[seed]["ascending"]["anchor_logs"] if l["step"] == post_step)["anchor_bpc"]
         d_post = next(l for l in data[seed]["descending"]["anchor_logs"] if l["step"] == post_step)["anchor_bpc"]
-        plt.plot([0, 1], [d_pre - a_pre, d_post - a_post], marker="o", lw=2, label=f"Seed {seed}")
+        
+        y_pts = [d_pre - a_pre, d_post - a_post]
+        diffs_pre.append(d_pre - a_pre)
+        diffs_post.append(d_post - a_post)
+        
+        if has_extension:
+            a_3000 = next((l for l in data[seed]["ascending"]["anchor_logs"] if l["step"] == 3000), None)
+            d_3000 = next((l for l in data[seed]["descending"]["anchor_logs"] if l["step"] == 3000), None)
+            if a_3000 and d_3000:
+                y_pts.append(d_3000["anchor_bpc"] - a_3000["anchor_bpc"])
+                diffs_ext.append(d_3000["anchor_bpc"] - a_3000["anchor_bpc"])
+                
+        plt.plot(x_ticks, y_pts, marker="o", lw=1.5, alpha=0.5, label=f"Seed {seed}")
+        
+    # Overlay mean marker
+    mean_pts = [np.mean(diffs_pre), np.mean(diffs_post)]
+    if has_extension and diffs_ext:
+        mean_pts.append(np.mean(diffs_ext))
+    plt.plot(x_ticks, mean_pts, marker="s", color="black", lw=3, label="3-Seed Mean", zorder=4)
+    
     plt.axhline(y=0.0, color="black", linestyle=":", lw=1)
     plt.axhline(y=0.03, color="red", linestyle=":", label="0.03 BPC")
-    plt.xticks([0, 1], [f"Pre (Step {pre_step})", f"Post (Step {post_step})"])
+    plt.xticks(x_ticks, x_labels)
     plt.ylabel("Paired Δ^A BPC (Descending − Ascending)")
     plt.title("Appendix Figure A3: Paired Seed Endpoints")
     plt.legend()
@@ -339,6 +434,52 @@ def generate_contract_figures(data, active_seeds, checkpoints, pre_step, post_st
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.savefig(os.path.join(figures_dir, "appendix_A4_context_alignment.png"), dpi=200, bbox_inches="tight")
+        plt.close()
+        
+    # -------------------------------------------------------------
+    # Appendix A5 — Nonmonotonic Exploratory Contrasts
+    # -------------------------------------------------------------
+    if len(rec_steps) >= 2:
+        plt.figure(figsize=(10, 6))
+        for h in horizons:
+            h_str = str(h)
+            na_gaps = []
+            dn_gaps = []
+            for seed in active_seeds:
+                n_bpc = [next(l for l in data[seed]["nonmonotonic"]["logs"] if l["step"] == s)["horizon_bpc"].get(h, 
+                         next(l for l in data[seed]["nonmonotonic"]["logs"] if l["step"] == s)["horizon_bpc"].get(h_str)) for s in rec_steps]
+                a_bpc = [next(l for l in data[seed]["ascending"]["logs"] if l["step"] == s)["horizon_bpc"].get(h, 
+                         next(l for l in data[seed]["ascending"]["logs"] if l["step"] == s)["horizon_bpc"].get(h_str)) for s in rec_steps]
+                d_bpc = [next(l for l in data[seed]["descending"]["logs"] if l["step"] == s)["horizon_bpc"].get(h, 
+                         next(l for l in data[seed]["descending"]["logs"] if l["step"] == s)["horizon_bpc"].get(h_str)) for s in rec_steps]
+                na_gaps.append(np.array(n_bpc) - np.array(a_bpc))
+                dn_gaps.append(np.array(d_bpc) - np.array(n_bpc))
+            plt.plot(np.array(rec_steps) - pre_step, np.mean(na_gaps, axis=0), color=HORIZON_COLORS[h], lw=2, linestyle="-", label=f"N−A (T={h})")
+            plt.plot(np.array(rec_steps) - pre_step, np.mean(dn_gaps, axis=0), color=HORIZON_COLORS[h], lw=2, linestyle="--", label=f"D−N (T={h})")
+        plt.axhline(y=0.0, color="black", linestyle=":", lw=1)
+        plt.xlabel("Recovery Step k")
+        plt.ylabel("Δ BPC")
+        plt.title("Appendix Figure A5: Nonmonotonic Exploratory Contrasts\n(Exploratory — one prespecified nonmonotonic permutation)")
+        plt.legend(loc="upper right", ncol=2)
+        plt.grid(True, alpha=0.3)
+        plt.savefig(os.path.join(figures_dir, "appendix_A5_nonmonotonic_exploratory.png"), dpi=200, bbox_inches="tight")
+        plt.close()
+        
+    # -------------------------------------------------------------
+    # Appendix A6 — Extension Anchor Heatmap (Step 3000, if present)
+    # -------------------------------------------------------------
+    if has_extension:
+        mat_3000 = get_anchor_matrix(3000)
+        plt.figure(figsize=(8, 5))
+        plt.imshow(mat_3000, cmap="viridis", vmin=vmin, vmax=vmax, aspect="auto")
+        plt.colorbar(label="Mean Anchor BPC")
+        plt.xticks(range(4), [f"T={h}" for h in horizons])
+        plt.yticks(range(3), [f"{a} (exploratory)" if a == "nonmonotonic" else a for a in arms])
+        for i in range(3):
+            for j in range(4):
+                plt.text(j, i, f"{mat_3000[i, j]:.4f}", ha="center", va="center", color="white" if mat_3000[i, j] < (vmin + vmax)/2 else "black")
+        plt.title("Appendix Figure A6: Extension Anchor Heatmap (Step 3000)")
+        plt.savefig(os.path.join(figures_dir, "appendix_A6_extension_anchor_step3000.png"), dpi=200, bbox_inches="tight")
         plt.close()
         
     print(f"Generated contract CSVs in {os.path.join(figures_dir, 'data')}")

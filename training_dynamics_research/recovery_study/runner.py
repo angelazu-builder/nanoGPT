@@ -26,6 +26,7 @@ from .config import (
     SCHEDULES,
     ARM_ROTATION,
     BASE_RESULTS_DIR,
+    SMOKE_RESULTS_DIR,
     DEVICE,
     LR,
     MIN_LR,
@@ -101,7 +102,7 @@ def atomic_save_json(obj, file_path):
 def save_checkpoint(model, optimizer, step, arm, seed, logs, anchor_logs, sensitivity_logs, elapsed_sec, ckpt_path):
     """
     P1 requirement: Full state checkpointing for seamless resume and adaptive extension.
-    Preserves model weights, Adam moments, global step, and RNG states.
+    Preserves model weights, Adam moments, global step, logs up to current step, and RNG states.
     """
     payload = {
         "global_step": step,
@@ -139,10 +140,14 @@ def run_single_arm(
     anchor_eval_steps=None,
     smoke_test=False,
     resume_from=None,
+    val_start_indices=None,
 ):
     """
     Execute training and evaluation for a single arm and seed.
-    Supports complete state checkpointing, resumption, and adaptive extension.
+    Guarantees:
+    1. Seed is set BEFORE model instantiation.
+    2. Proper evaluation logging sequence before checkpointing.
+    3. Explicit completion flags and incremental flushing.
     """
     os.makedirs(output_dir, exist_ok=True)
     res_path = os.path.join(output_dir, "run_results.json")
@@ -159,6 +164,9 @@ def run_single_arm(
         
     x_proc, y_proc = process_val
     x_anch, y_anch = anchor_val
+    
+    # CRITICAL: Must happen before model parameter initialization!
+    set_seed(seed)
     
     vocab_size = len(ds.chars)
     model = MiniTransformerLM(
@@ -182,7 +190,7 @@ def run_single_arm(
     # Check if resuming from checkpoint
     if resume_from and os.path.exists(resume_from):
         print(f"  [RESUMING] Loading checkpoint from {resume_from}")
-        ckpt = torch.load(resume_from, map_location=device)
+        ckpt = torch.load(resume_from, map_location=device, weights_only=False)
         model.load_state_dict(ckpt["model_state"])
         optimizer.load_state_dict(ckpt["optimizer_state"])
         start_step = ckpt["global_step"] + 1
@@ -197,8 +205,6 @@ def run_single_arm(
         if ckpt.get("mps_rng_state") is not None and hasattr(torch, "mps") and torch.backends.mps.is_available():
             torch.mps.set_rng_state(ckpt["mps_rng_state"])
         print(f"  [RESUMED] Resumed at step {start_step}")
-    else:
-        set_seed(seed)
         
     if smoke_test:
         schedule_info = []
@@ -272,7 +278,13 @@ def run_single_arm(
         sync_device()
         step_duration = time.time() - t0
         
-        # Checkpoint evaluation (P2 fix: zero duplicate forwards)
+        # Checkpoint evaluation sequence:
+        # 1. evaluate
+        # 2. construct anchor_log if applicable
+        # 3. construct process log_entry
+        # 4. append all logs
+        # 5. save incremental JSON
+        # 6. save full checkpoint if anchor step
         if step in eval_steps:
             elapsed = accumulated_time + (time.time() - t_start)
             grad_norm = torch.norm(torch.stack([
@@ -281,12 +293,13 @@ def run_single_arm(
             
             if step in anchor_eval_steps:
                 # 1. Forward 32 anchor sequences ONCE
-                a_eval = evaluate_panel(model, x_anch, y_anch, device)
+                a_eval = evaluate_panel(
+                    model, x_anch, y_anch, device, val_start_indices=val_start_indices
+                )
                 
                 # 2. Slice the first 16 sequences for process panel metrics (zero duplicate forwards!)
                 p_eval = slice_process_metrics_from_anchor(a_eval, n_process=N_PROCESS_SEQUENCES)
                 
-                # Context sensitivity comes directly from a_eval
                 if a_eval.get("sensitivity") is not None:
                     sensitivity_logs[str(step)] = a_eval["sensitivity"]
                     
@@ -300,23 +313,7 @@ def run_single_arm(
                     "mean_entropy": a_eval["mean_entropy"],
                 }
                 anchor_logs.append(anchor_log)
-                
-                # Save full state checkpoint (weights + Adam moments + RNG states)
-                ckpt_path = os.path.join(output_dir, f"checkpoint_step_{step}.pt")
-                save_checkpoint(
-                    model=model,
-                    optimizer=optimizer,
-                    step=step,
-                    arm=arm,
-                    seed=seed,
-                    logs=logs,
-                    anchor_logs=anchor_logs,
-                    sensitivity_logs=sensitivity_logs,
-                    elapsed_sec=elapsed,
-                    ckpt_path=ckpt_path,
-                )
             else:
-                # Routine checkpoint: evaluate only the 16 process sequences
                 p_eval = evaluate_panel(model, x_proc, y_proc, device)
                 
             log_entry = {
@@ -344,6 +341,9 @@ def run_single_arm(
                 "seed": seed,
                 "total_steps": total_steps,
                 "current_step": step,
+                "completed": False,
+                "smoke_test": smoke_test,
+                "is_extension": total_steps > MAX_STEPS,
                 "total_time_sec": elapsed,
                 "logs": logs,
                 "anchor_logs": anchor_logs,
@@ -351,6 +351,22 @@ def run_single_arm(
             }
             atomic_save_json(partial_results, res_path)
             
+            # Save full checkpoint if this is an anchor step (now logs already includes current step!)
+            if step in anchor_eval_steps:
+                ckpt_path = os.path.join(output_dir, f"checkpoint_step_{step}.pt")
+                save_checkpoint(
+                    model=model,
+                    optimizer=optimizer,
+                    step=step,
+                    arm=arm,
+                    seed=seed,
+                    logs=logs,
+                    anchor_logs=anchor_logs,
+                    sensitivity_logs=sensitivity_logs,
+                    elapsed_sec=elapsed,
+                    ckpt_path=ckpt_path,
+                )
+                
             print(
                 f"  [{arm:12s}|s{seed}] Step {step:4d}/{total_steps} | T={T:3d} | "
                 f"Proc BPC={p_eval['bpc']:.4f} | "
@@ -362,10 +378,15 @@ def run_single_arm(
     total_time = accumulated_time + (time.time() - t_start)
     print(f"✔ Completed Arm='{arm}', Seed={seed} in {total_time:.1f}s")
     
+    # Final results with explicit completion status
     results = {
         "arm": arm,
         "seed": seed,
         "total_steps": total_steps,
+        "current_step": total_steps,
+        "completed": True,
+        "smoke_test": smoke_test,
+        "is_extension": total_steps > MAX_STEPS,
         "total_time_sec": total_time,
         "logs": logs,
         "anchor_logs": anchor_logs,
@@ -387,7 +408,12 @@ def run_experiment(
 ):
     """
     Sequential execution manager with rotation order, full provenance, and adaptive extension support.
+    Smoke test outputs are isolated to SMOKE_RESULTS_DIR.
     """
+    # Separate smoke outputs from formal outputs
+    if smoke_test and results_dir == BASE_RESULTS_DIR:
+        results_dir = SMOKE_RESULTS_DIR
+        
     os.makedirs(results_dir, exist_ok=True)
     train_data = ds.train_data
     val_data = ds.val_data
@@ -397,6 +423,7 @@ def run_experiment(
     device = DEVICE if torch.backends.mps.is_available() else "cpu"
     print(f"=== Context-Length Recovery Study Execution ===")
     print(f"Hardware backend: {device}")
+    print(f"Results Directory: {results_dir}")
     print(f"Git commit: {get_git_commit()}")
     print(f"Platform: {platform.platform()} | Python: {platform.python_version()} | PyTorch: {torch.__version__}")
     print(f"Seeds: {seeds}")
@@ -447,6 +474,7 @@ def run_experiment(
     # 2. Sequential execution across seeds following rotation order
     all_results = {}
     target_seeds = [42] if smoke_test else seeds
+    required_steps = HARD_CAP_STEPS if extend else MAX_STEPS
     
     for seed in target_seeds:
         print(f"\n==========================================")
@@ -477,13 +505,20 @@ def run_experiment(
                 if not os.path.exists(ckpt_2500):
                     raise FileNotFoundError(f"Cannot extend arm {arm} seed {seed}: {ckpt_2500} not found. Run main 2500 steps first.")
                 
-                # Check if already completed extension
+                # Check if already completed extension using explicit completion flags
                 if os.path.exists(res_file) and not overwrite:
-                    with open(res_file, "r") as f:
-                        cur_data = json.load(f)
-                    if cur_data.get("current_step", 0) >= HARD_CAP_STEPS:
-                        print(f"  [SKIP] Arm {arm} seed {seed} already extended to {HARD_CAP_STEPS}. Use --overwrite to re-run.")
-                        continue
+                    try:
+                        with open(res_file, "r") as f:
+                            cur_data = json.load(f)
+                        is_complete = (
+                            cur_data.get("completed", False)
+                            and cur_data.get("current_step", 0) >= HARD_CAP_STEPS
+                        )
+                        if is_complete:
+                            print(f"  [SKIP] Arm {arm} seed {seed} already extended to {HARD_CAP_STEPS}. Use --overwrite to re-run.")
+                            continue
+                    except Exception:
+                        pass
                         
                 res = run_single_arm(
                     arm=arm,
@@ -501,15 +536,23 @@ def run_experiment(
                     anchor_eval_steps=set(ANCHOR_EVAL_STEPS + EXTENSION_ANCHOR_EVAL_STEPS),
                     smoke_test=False,
                     resume_from=ckpt_2500,
+                    val_start_indices=val_start_indices,
                 )
             else:
-                # Normal 2500-step run
+                # Normal 2500-step run: check if already completed using explicit completion flags
                 if os.path.exists(res_file) and not overwrite and not smoke_test:
-                    with open(res_file, "r") as f:
-                        cur_data = json.load(f)
-                    if cur_data.get("current_step", 0) >= MAX_STEPS:
-                        print(f"  [SKIP] Arm {arm} seed {seed} already completed {MAX_STEPS} steps. Use --overwrite to re-run.")
-                        continue
+                    try:
+                        with open(res_file, "r") as f:
+                            cur_data = json.load(f)
+                        is_complete = (
+                            cur_data.get("completed", False)
+                            and cur_data.get("current_step", 0) >= MAX_STEPS
+                        )
+                        if is_complete:
+                            print(f"  [SKIP] Arm {arm} seed {seed} already completed {MAX_STEPS} steps. Use --overwrite to re-run.")
+                            continue
+                    except Exception:
+                        pass
                         
                 res = run_single_arm(
                     arm=arm,
@@ -524,6 +567,7 @@ def run_experiment(
                     output_dir=arm_dir,
                     total_steps=MAX_STEPS,
                     smoke_test=smoke_test,
+                    val_start_indices=val_start_indices,
                 )
                 
             all_results[f"seed_{seed}_{arm}"] = res

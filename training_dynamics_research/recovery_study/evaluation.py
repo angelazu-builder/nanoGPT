@@ -56,14 +56,14 @@ def build_validation_tensors(val_data, start_indices, device):
 
 
 @torch.no_grad()
-def evaluate_panel(model, x_val, y_val, device, horizons=CONTEXT_LENGTHS):
+def evaluate_panel(model, x_val, y_val, device, horizons=CONTEXT_LENGTHS, val_start_indices=None):
     """
     Evaluate validation panel with ZERO duplicate forwards:
     1. Forward full context (256) once with diagnostics.
     2. Reuse 256-step logits for horizon h=256 (no second forward!).
     3. Forward sub-contexts only for h in [32, 64, 128].
     4. Store BOTH mean_bpc and per-sequence seq_bpc for ALL horizons.
-    5. Extract token-level losses for h=32 and h=256 to provide context sensitivity directly.
+    5. Extract token-level losses for h=32 and h=256 with structured target records.
     """
     model.eval()
     N_seq, T_seq = x_val.shape
@@ -116,6 +116,24 @@ def evaluate_panel(model, x_val, y_val, device, horizons=CONTEXT_LENGTHS):
     sensitivity = None
     if 32 in token_losses and 256 in token_losses:
         c_i = token_losses[32] - token_losses[256]
+        
+        target_records = []
+        if val_start_indices is not None:
+            for sequence_index, absolute_start in enumerate(val_start_indices):
+                for target_offset in range(target_len):
+                    flat_idx = sequence_index * target_len + target_offset
+                    abs_pos = int(absolute_start + VAL_CONTEXT - target_len + 1 + target_offset)
+                    bpc_32 = float(token_losses[32][flat_idx])
+                    bpc_256 = float(token_losses[256][flat_idx])
+                    target_records.append({
+                        "validation_sequence_index": sequence_index,
+                        "target_offset_within_scored_window": target_offset,
+                        "absolute_validation_position": abs_pos,
+                        "bpc_32": bpc_32,
+                        "bpc_256": bpc_256,
+                        "context_gain": bpc_32 - bpc_256,
+                    })
+                    
         sensitivity = {
             "c_i": c_i.tolist(),
             "mean_c": float(np.mean(c_i)),
@@ -123,6 +141,7 @@ def evaluate_panel(model, x_val, y_val, device, horizons=CONTEXT_LENGTHS):
             "frac_gt_0_1": float(np.mean(c_i > 0.1)),
             "token_bpc_32": token_losses[32].tolist(),
             "token_bpc_256": token_losses[256].tolist(),
+            "target_records": target_records,
         }
         
     model.train()
