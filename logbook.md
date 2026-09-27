@@ -612,3 +612,53 @@ Under corrected paired data, the Curriculum–Shuffled gap shrinks to 0.015 BPC.
 - **H1** (Anti-Curriculum degradation real, p<0.05, Δ>0.05 BPC): ✅ **CONFIRMED** — Δ=+0.178 BPC, p=0.0001, t=−15.6
 - **H2** (Curriculum ≈ Shuffled, |Δ|<0.01 BPC): ✅ **CONFIRMED** — Δ=−0.003 BPC, p=0.643, not significant
 - **H3** (Fixed-Long ≈ Curriculum, curriculum ordering adds no benefit): ✅ **CONFIRMED** — Δ=+0.001 BPC, p=0.886
+
+---
+
+## Phase 42 — External Critique Review (2026-09-27)
+
+**Action**: Received external expert critique of `technical_report_v3_analysis.md`. Reviewed all 6 critiques; applied accepted ones to the report.
+
+### Critique Assessment Table
+
+| ID | Critique | Decision | Action taken |
+|----|----------|----------|-------------|
+| C1 | p=0.643 ≠ equivalence; 95% CI [−0.022, +0.015] outside ±0.01 zone | ✅ Accepted | Replaced "equivalent"/"indistinguishable" with "no significant difference detected; n=5 cannot rule out effects up to ~0.02 BPC" throughout report |
+| C2 | Anti-Curriculum confounds 4 factors simultaneously (order, LR-phase, AdamW moments, train–eval T mismatch) | ✅ Accepted | Downgraded §6.2 mechanism from confident causal claim to "plausible contributing factors, cannot be disentangled" |
+| C3 | Fixed-Long not FLOP-matched (attention is O(T²)) | ⚠️ Noted | Added explicit token-matched vs FLOP-matched distinction in limitations and H3 section |
+| C4 | Validation only 512 tokens (16 seq × 32 pos) — too small to detect sub-0.02 BPC effects | ✅ Accepted | Strengthened §3.2 with concrete fix: use ~10k-token fixed eval manifest |
+| C5 | Manifest uses `rng.randint` WITH replacement → windows overlap; "unique positions" overclaim | ✅ Accepted | Retracted "unique positions" / "zero-overlap" everywhere; added ⚠️ note in §2.3 and §3.1; confirmed paired property is preserved |
+| C6 | Corpus probe computes entropy not NLL | ❌ Not accepted | Code verified: computes −log₂ p(y_obs \| context) on held-out pairs → IS NLL. Critique appears incorrect. |
+
+### Study Classification Correction
+
+Report previously used language implying this was a full ablation study. Corrected to:
+> **"Controlled pilot study with paired design"**
+
+This is more rigorous than a single-run experiment, but falls short of a full ablation study due to:
+- No TOST equivalence test (n=5 is underpowered for sub-0.01 BPC claims)
+- 512-token eval (too small for fine-grained power)
+- No factorial design to isolate Anti-Curriculum mechanism factors
+- Token-matched only (not FLOP-matched)
+
+### Specific Language Retractions
+
+| Location | Old language | New language |
+|----------|-------------|-------------|
+| Abstract | "statistically indistinguishable" | "no detectable difference; n=5 cannot rule out ~0.02 BPC effects" |
+| H2 section | "✅ CONFIRMED — equivalent" | "NOT REJECTED — but NOT proven equivalent" |
+| H3 section | "equivalent to Curriculum" | "no significant difference; FLOP caveat added" |
+| §2.3 manifest | "non-overlapping slice", "unique positions" | "sequential slice from pool drawn with replacement; paired property preserved" |
+| §3.1 table | "zero-overlap slices confirmed" | "paired property verified; ⚠️ pool drawn with replacement; zero-overlap claim retracted" |
+| §6.2 mechanism | confident causal explanation of LR-phase interaction | "plausible contributing factors: LR-phase, AdamW moments, train–eval T mismatch; cannot be disentangled" |
+| Conclusion | "statistically indistinguishable" | "no significant difference; formal equivalence not established" |
+
+### New §3.3 Added to Report
+
+Added full "External Critique Response" section to `technical_report_v3_analysis.md` documenting all 6 critiques, accepted/rejected status, exact language corrections, and upgrade requirements.
+
+### Files Modified
+
+- `training_dynamics_research/technical_report_v3_analysis.md` — critique responses applied
+- `logbook.md` — this Phase 42 entry
+

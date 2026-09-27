@@ -10,7 +10,7 @@
 
 ## Abstract
 
-We test whether the temporal ordering of context lengths during Transformer pre-training affects final language modeling performance. Four arms — Curriculum (32→256), Shuffled Control, Anti-Curriculum (256→32), and Fixed-Long Baseline — were trained on Tiny Shakespeare under strictly paired batch data (5 seeds × 4 arms = 20 runs, 2,500 steps each). After correcting five measurement bugs in a prior experiment, we find: (1) Curriculum and Shuffled orderings produce statistically indistinguishable final BPC (Δ = −0.003, p = 0.643); (2) Fixed-Long Baseline matches Curriculum (Δ = +0.001, p = 0.886); (3) Anti-Curriculum degradation is the study's only robust finding (Δ = +0.178 BPC, t = −15.6, p = 0.0001). Context length curricula provide no detectable benefit over randomized or static-context training in this setting.
+We test whether the temporal ordering of context lengths during Transformer pre-training affects final language modeling performance. Four arms — Curriculum (32→256), Shuffled Control, Anti-Curriculum (256→32), and Fixed-Long Baseline — were trained on Tiny Shakespeare under strictly paired batch data (5 seeds × 4 arms = 20 runs, 2,500 steps each). This is a **controlled pilot study with paired design** — not a full ablation study. After correcting five measurement bugs in a prior experiment, we find: (1) Current n=5 cannot rule out Curriculum–Shuffled differences up to ~0.02 BPC; the observed gap of −0.003 BPC (p = 0.643) does not establish equivalence (2) The same applies to Fixed-Long vs Curriculum (Δ = +0.001, p = 0.886); (3) Anti-Curriculum degradation is the study's only robust finding (Δ = +0.178 BPC, t = −15.6, p = 0.0001), though the mechanism cannot be fully isolated. Context length curricula provide no *detectable* benefit over randomized or static-context training in this setting.
 
 ---
 
@@ -47,7 +47,7 @@ Does the temporal ordering of context lengths during pre-training — specifical
 
 ### 2.3 Paired Design — Key Methodological Choice
 
-To isolate ordering from data sampling, all four arms within a seed share an identical **pre-generated batch manifest**: for each context length T, the same pool of start indices (drawn once, deterministically, from the training set) is used by every arm that processes T. Each step draws a non-overlapping slice of that pool. Batch sizes differ by T to maintain constant B×T=4,096 throughput:
+To isolate ordering from data sampling, all four arms within a seed share an identical **pre-generated batch manifest**: for each context length T, the same pool of start indices is drawn once (via `rng.randint`, *with replacement*) from the training set and reused by every arm that processes T. Each step draws a sequential slice of that pool. Batch sizes differ by T to maintain constant B×T=4,096 throughput:
 
 | T | B | Pool size |
 |---|---|-----------|
@@ -55,6 +55,8 @@ To isolate ordering from data sampling, all four arms within a seed share an ide
 | 64 | 64  | 40,000 (625 × 64) |
 | 128 | 32  | 20,000 (625 × 32) |
 | 256 | 16  | 40,000 (2,500 × 16, for Fixed-Long) |
+
+> ⚠️ **Manifest sampling note**: Start positions are drawn *with replacement* (`rng.randint`), so individual windows may overlap within the pool. The **paired property is fully preserved** — all arms share the identical pool for each T — but earlier claims of "unique positions" and "zero overlapping windows" were incorrect and are retracted.
 
 This ensures differences in final BPC reflect only the ordering of context lengths, not differences in which text the model saw.
 
@@ -73,7 +75,7 @@ Before accepting any results, we critically examine the measurement chain.
 | Component | Assessment |
 |-----------|-----------|
 | Gradient noise probe (Tr(Σ) vs T) | ✅ Solid — direct measurement at step 0, independent of training design |
-| Paired batch manifest | ✅ Verified — zero-overlap slices confirmed; Curriculum and Shuffled cover identical (T, start_index) pairs |
+| Paired batch manifest | ✅ Paired property verified — Curriculum and Shuffled use identical (T, pool) per seed. ⚠️ Pool drawn *with replacement*; windows may overlap. Prior "zero-overlap" claim retracted. |
 | BPC metric (fixed last-32 window) | ✅ Correct — always scores the same 32 token positions regardless of training T |
 | t-test validity | ✅ Valid — same model architecture, same optimizer, same data per seed; differences are paired; df=4 |
 
@@ -82,7 +84,7 @@ Before accepting any results, we critically examine the measurement chain.
 **Validation batch size (16 sequences)**  
 Each eval uses 16 sequences × 32 scored positions = 512 total token predictions. This is very small. The standard error of a BPC estimate from 512 tokens is roughly σ_BPC / √512. The observed within-seed BPC differences between arms (0.001–0.015 BPC) may partially reflect this noise, not just ordering effects. The t-test partially controls for this since all arms within a seed use the **same** 16 validation sequences.
 
-> **Remaining concern**: BPC is estimated on only 16 validation sequences. The inter-seed BPC variance (std ≈ 0.07 BPC) is large relative to the Curriculum–Shuffled difference (0.003 BPC). This means even 5 paired seeds may be insufficient to detect small ordering effects if they exist.
+> **Remaining concern**: BPC is estimated on only 16 validation sequences. The inter-seed BPC variance (std ≈ 0.07 BPC) is large relative to the Curriculum–Shuffled difference (0.003 BPC). This means even 5 paired seeds may be insufficient to detect small ordering effects if they exist. **Recommended fix**: replace the 16-sequence eval with a fixed eval manifest over ~10,000 tokens sampled once from the val corpus, used identically across all runs.
 
 **Training duration (2,500 steps ≈ 10M tokens)**  
 Tiny Shakespeare has ~1M characters. At 10M tokens, each character in the training set is seen roughly 10 times on average. This is a very short run; models may not be near convergence. Context ordering effects, if real, might be more pronounced or more detectable at longer training horizons where the learning rate is smaller and gradient variance matters more.
@@ -95,6 +97,94 @@ When transitioning between phases (e.g., from T=32 to T=64), AdamW's moment esti
 
 **Corpus probe limitations (Bug #1, corrected)**  
 The original claim that "16 characters explains 99% of corpus entropy" was based on a resubstitution-biased n-gram estimator. Corrected measurement (40k/10k split, Laplace smoothing) shows the estimator has zero signal beyond lag 2–3 at this corpus scale. We therefore cannot characterize Tiny Shakespeare's actual long-range dependency structure from this probe.
+
+---
+
+### 3.3 External Critique Response — Accepted Limitations
+
+After peer review of this report, the following critiques were assessed and partially or fully accepted. This section documents the precise language corrections made and the remaining open issues.
+
+#### Critique C1 — p = 0.643 ≠ Equivalence (✅ Accepted)
+
+**Original claim**: Curriculum and Shuffled are "statistically indistinguishable" / "equivalent".
+
+**Why this is wrong**: A non-significant p-value means we *failed to detect* a difference — it does not prove the groups are equivalent. The 95% confidence interval for the Curriculum–Shuffled difference is approximately **[−0.022, +0.015] BPC**. This interval contains 0, but it also contains effects as large as 0.022 BPC — larger than our ±0.01 BPC informal equivalence threshold. Formal equivalence testing (TOST) was not performed.
+
+**Language correction**: All uses of "equivalent" and "indistinguishable" for the Curriculum–Shuffled comparison are replaced throughout this document with: *"current n=5 cannot rule out effects up to ~0.02 BPC; no significant difference detected (p = 0.643)."*
+
+**Upgrade required**: To formally claim equivalence, run TOST with a pre-specified ±0.01 BPC equivalence zone, or increase n to ≥15 seeds.
+
+---
+
+#### Critique C2 — Anti-Curriculum Confounds Multiple Factors (✅ Accepted)
+
+**Original claim**: Anti-Curriculum failure is explained by "phase-LR interaction" — the model is stuck in long-range patterns when forced to train short-context under a small LR.
+
+**Why this needs downgrading**: Anti-Curriculum simultaneously changes at least four things relative to Curriculum:
+1. The order in which context lengths appear
+2. Which LR phase (high vs low LR) is paired with which context length
+3. The state of AdamW moment estimates (m_t, v_t) at each phase transition
+4. **Train–eval context mismatch**: Anti-Curriculum's final 625 steps train on T=32, but evaluation always uses T=256. This alone could explain the BPC penalty — the model is being tested on a context length it hasn't seen for 1,875 steps.
+
+The Δ = +0.178 BPC is a reliable **observation** — Anti-Curriculum is robustly worse. But the mechanism cannot be attributed solely to any one of these factors from the current design.
+
+**Language correction**: §6.2 mechanism claim downgraded from a confident causal explanation to: *"plausible contributing factors include LR-phase interaction, AdamW moment carryover, and train–eval context mismatch; these cannot be disentangled in the current design."*
+
+**Upgrade required**: Factorial design (order × LR-phase × moment-reset × eval-T) to isolate each factor.
+
+---
+
+#### Critique C3 — Fixed-Long Not FLOP-Matched (⚠️ Noted as limitation)
+
+**Issue**: Attention is O(T²) per token in standard implementations. Fixed-Long (T=256 throughout) therefore uses more attention FLOPs per step than Curriculum's early phases (T=32 uses 64× less attention compute per sequence). The comparison is **token-matched, not FLOP-matched**.
+
+**Response**: This is a genuine limitation for drawing conclusions about "efficiency" of curriculum training. However, for the practical question *"given the same wall-clock token budget, does ordering matter?"* the token-matched comparison is appropriate and is the more common real-world scenario.
+
+**Language correction**: Limitations section notes this distinction explicitly. We do **not** claim Fixed-Long is FLOP-equivalent to Curriculum; we claim it is token-equivalent.
+
+---
+
+#### Critique C4 — Validation Set Too Small (✅ Accepted — strengthened recommendation)
+
+**Issue**: 16 sequences × 32 positions = 512 token predictions per eval. The standard deviation of BPC across seeds (~0.07) dwarfs the Curriculum–Shuffled difference (0.003 BPC). Even with paired design, we lack power to detect effects smaller than ~0.02 BPC.
+
+**Language correction**: §3.2 strengthened with concrete fix recommendation (see above).
+
+**Upgrade required**: Use a fixed eval manifest of ~10,000 tokens from the val corpus, generated once and used identically across all seeds and arms.
+
+---
+
+#### Critique C5 — Manifest "Unique Positions" Claim Retracted (✅ Accepted)
+
+**Issue**: The manifest pool is generated via `rng.randint(0, corpus_size, size=pool_size)`, which samples **with replacement**. Start positions can repeat; text windows can overlap. Prior reports and logbook entries claimed "unique positions" and "zero overlapping windows" — both are incorrect.
+
+**What is preserved**: The **paired property** is fully intact — all arms within a seed use the identical pool for each T. The overclaim is only about the *internal* structure of that pool.
+
+**Language correction**: All references to "unique positions" and "zero-overlap" in this document are corrected to: *"shared random sample drawn with replacement; paired property preserved."*
+
+---
+
+#### Critique C6 — Corpus Probe Computes Entropy, Not NLL (❌ Not accepted)
+
+**Claim**: `corpus_probe_v2.py` was alleged to compute Shannon entropy rather than negative log-likelihood (NLL) of held-out observations.
+
+**Response**: Upon code inspection, `corpus_probe_v2.py` computes −log₂ p(y_observed | context) over held-out (context, target) pairs, where p is estimated from a *training split* n-gram table. This is NLL on held-out data, not entropy of the training distribution. The critique is not accepted. The code is available for independent verification at `corpus_probe_v2.py`.
+
+---
+
+#### Study Classification Correction
+
+**Previous implicit framing**: This was described language consistent with a full ablation study.
+
+**Corrected classification**: This is a **controlled pilot study with paired design**. It is more rigorous than a typical "change one variable, run once" experiment (paired seeds, shared manifests, multiple arms), but it does not meet the bar for a strict ablation study. Key gaps:
+
+| Requirement for full ablation | Status |
+|-------------------------------|--------|
+| TOST equivalence test + pre-specified δ | ❌ Not done |
+| n ≥ 15 for sub-0.01 BPC effects | ❌ n=5 |
+| Full val corpus eval (≥10k tokens) | ❌ 512 tokens |
+| schedule × LR × momentum-reset factorial | ❌ Not done |
+| Token-matched AND FLOP-matched comparisons | ❌ Token only |
 
 ---
 
@@ -156,19 +246,23 @@ The magnitude (+0.178 BPC) represents ~6.8% of the total trained-model improveme
 
 **Mechanism (plausible, not formally tested)**: The Anti-Curriculum schedule forces the final 625 steps — where the cosine LR is near its minimum (≈1e-4) — to train on T=32 sequences. At this learning rate, the model cannot efficiently adapt its attention patterns from long-context dependencies (learned in the first 1,875 steps) to short-context ones. The result is a model that has partially "unlearned" long-range structure without having fully re-learned short-range structure under the small LR.
 
-### H2: Curriculum and Shuffled are statistically equivalent
+### H2: Curriculum and Shuffled — no significant difference detected
 
-**Status: ✅ CONFIRMED**
+**Status: ✅ NOT REJECTED (but NOT proven equivalent)**
 
-Δ = −0.003 BPC, p = 0.643. The null hypothesis (no ordering effect) is clearly not rejected. In 3 of 5 seeds, Shuffled achieves *lower* (better) BPC than Curriculum. The original (non-paired) experiment reported a +0.005 BPC Curriculum advantage — that gap was entirely within single-seed noise amplified by non-paired data sampling.
+Δ = −0.003 BPC, p = 0.643. The null hypothesis (no ordering effect) is not rejected. In 3 of 5 seeds, Shuffled achieves *lower* (better) BPC than Curriculum. The original (non-paired) experiment reported a +0.005 BPC Curriculum advantage — that gap was entirely within single-seed noise amplified by non-paired data sampling.
 
-**Implication for Li et al. / Press et al.**: The theoretical benefit of context length warmup (reduced gradient variance at initialization) does not translate to a detectable final BPC advantage in this setting. The gradient noise reduction is real (Section 4.1), but its practical effect on end-of-training performance is negligible after 2,500 steps.
+> **Important caveat (Critique C1)**: p = 0.643 does not mean the groups are equivalent. The 95% CI for Curriculum–Shuffled is approximately [−0.022, +0.015] BPC. Effects up to ~0.02 BPC cannot be ruled out with n=5. A formal equivalence claim requires TOST testing.
 
-### H3 (Additional finding): Fixed-Long is equivalent to Curriculum
+**Implication for Li et al. / Press et al.**: The theoretical benefit of context length warmup (reduced gradient variance at initialization) does not translate to a *detectable* final BPC advantage in this setting. The gradient noise reduction is real (Section 4.1), but its practical effect on end-of-training performance is not significant at this scale and n.
 
-**Status: ✅ CONFIRMED**
+### H3 (Additional finding): Fixed-Long — no significant difference from Curriculum
 
-Δ = +0.001 BPC, p = 0.886. A constant T=256 baseline — the simplest possible schedule — matches Curriculum. This means the engineering overhead of implementing a context curriculum has no performance return at this model scale and training budget. Fixed-Long beats Curriculum in 4 of 5 seeds.
+**Status: ✅ NOT REJECTED (same caveats as H2)**
+
+Δ = +0.001 BPC, p = 0.886. A constant T=256 baseline — the simplest possible schedule — shows no significant difference from Curriculum. Fixed-Long beats Curriculum in 4 of 5 seeds. 
+
+> **Caveat (Critique C3)**: Fixed-Long uses more attention FLOPs per step (O(T²) ∝ 256²) than Curriculum's early phases (∝ 32²). This comparison is **token-matched, not FLOP-matched**. Under a FLOP-matched comparison, Fixed-Long would effectively have fewer steps, potentially making the comparison less favorable for Fixed-Long.
 
 ---
 
@@ -188,9 +282,14 @@ The theoretical case for curriculum rests on gradient noise: short sequences giv
 
 The Anti-Curriculum failure is asymmetric with the Curriculum non-result. Curriculum doesn't help; Anti-Curriculum *hurts*. This asymmetry matters theoretically: it suggests that long-then-short is not simply a neutral reordering, but a positively harmful one.
 
-The most natural explanation is the **phase-LR interaction**: Anti-Curriculum's T=32 phase occurs in steps 1,876–2,500, where LR ≈ 1.0–1.6 × 10⁻⁴ (deep in cosine decay). At this small LR, the model cannot efficiently adapt to the new context length; the first-and-second-moment estimates in AdamW encode gradient statistics from T=256 and T=128 phases, and these dominate. The model's attention structure is "stuck" at long-range patterns learned under larger LR, with insufficient capacity to re-optimize for T=32.
+**Observation**: Δ = +0.178 BPC vs Curriculum, consistent in all 5 seeds. This is reliable.
 
-This is essentially a catastrophic forgetting argument applied to context length: forcing a distribution shift late in training under a small LR is harmful.
+**Mechanism (plausible contributing factors — not causally isolated)**:
+1. **Phase-LR interaction**: Anti-Curriculum's T=32 phase occurs in steps 1,876–2,500, where LR ≈ 1.0–1.6 × 10⁻⁴. At this small LR, the model cannot efficiently adapt gradient statistics to the new context length.
+2. **AdamW moment carryover**: First and second moment estimates (m_t, v_t) in AdamW encode gradient statistics from the T=256 and T=128 phases. These dominate the small-LR update steps when the arm switches to T=32.
+3. **Train–eval context mismatch**: Anti-Curriculum's final 625 steps train exclusively on T=32, but evaluation always uses T=256. The model is being tested at a context length it hasn't trained on for 1,875 steps — this alone may explain part of the BPC penalty.
+
+> **Critique C2 response**: These factors are *simultaneously present* in Anti-Curriculum and cannot be individually attributed from the current design. The +0.178 BPC gap is a reliable empirical observation; the mechanism requires a factorial design to isolate.
 
 ### 6.3 Relation to Prior Work
 
@@ -214,11 +313,13 @@ This is essentially a catastrophic forgetting argument applied to context length
 
 ## 7. Conclusion
 
-**Primary result**: In a 4.8M-parameter Transformer trained on Tiny Shakespeare for 2,500 steps, the ordering of context lengths during training makes no significant difference to final BPC, provided the ordering is not reversed (Anti-Curriculum). Curriculum, Shuffled, and Fixed-Long baselines are statistically indistinguishable (p > 0.6 in all comparisons).
+**Study classification**: This is a **controlled pilot study with paired design** — more rigorous than a single-run experiment, but not a full ablation study (see §3.3).
 
-**Secondary result**: Anti-Curriculum ordering causes a robust, large, and consistent performance degradation (Δ = +0.178 BPC, p = 0.0001). This is the only statistically significant finding of the study.
+**Primary result**: In a 4.8M-parameter Transformer trained on Tiny Shakespeare for 2,500 steps, no significant difference in final BPC is detected between Curriculum, Shuffled, and Fixed-Long orderings (p > 0.6 in all comparisons). With n=5, effects up to ~0.02 BPC cannot be ruled out; formal equivalence is not established.
 
-**Negative result**: Five measurement bugs in the original experiment inflated the apparent Curriculum advantage. After correction, the gap between Curriculum and Shuffled shrinks from a claimed ~0.005 BPC to a measured −0.003 BPC (reversed direction). The corpus probe's "99% entropy at lag ≤ 16" claim is fully retracted.
+**Secondary result**: Anti-Curriculum ordering causes a robust, large, and consistent performance degradation (Δ = +0.178 BPC, p = 0.0001, consistent across all 5 seeds). This is the only statistically significant finding. The mechanism plausibly involves LR-phase interaction, AdamW moment carryover, and train–eval context mismatch, but these cannot be disentangled in the current design.
+
+**Negative result**: Five measurement bugs in the original experiment inflated the apparent Curriculum advantage. After correction, the gap between Curriculum and Shuffled shrinks from a claimed ~0.005 BPC to a measured −0.003 BPC (reversed direction). The corpus probe's "99% entropy at lag ≤ 16" claim is fully retracted. Two additional overclaims — "unique positions" in the manifest and "statistical equivalence" of non-significant results — are also corrected.
 
 ---
 
