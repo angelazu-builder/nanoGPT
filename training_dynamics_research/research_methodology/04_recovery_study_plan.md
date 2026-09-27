@@ -1,115 +1,223 @@
-# Context-Length Order Recovery Study
+# 04 — Context-Length Order Recovery Study
 
-## 1. Project decision
+## Status
 
-Do not immediately run a large three-layer research program. On an Apple M3 with 24GB memory, use a staged, compute-aware design:
+This document is the execution specification for the next experiment.
 
-1. reanalyze existing results at negligible training cost;
-2. run one decisive `3 arms × 3 paired seeds` recovery experiment;
-3. include context-sensitive evaluation in the same experiment;
-4. run an optimizer-state mechanism experiment only if a persistent gap survives recovery.
+- Hardware constraint: Apple M3, 24GB unified memory
+- Formal design: **3 arms × 3 paired seeds = 9 runs**
+- Primary purpose: distinguish reversible terminal-context/recency effects from persistent context-order path dependence
+- Statistical posture: estimation-first; this experiment is not powered to prove small-effect equivalence
 
-## 2. Research question
+Before formal training, copy the frozen design and decision rules into `training_dynamics_research/recovery_study/PREREGISTRATION.md`, commit it, and record the commit hash in `logbook.md`.
 
-> Does context-length block order create persistent path dependence after all models receive the same final long-context training, or is the observed anti-curriculum degradation a reversible terminal-context effect?
+## 1. Research question
 
-The study is intentionally narrow. It does not attempt to prove that curriculum learning generally works or fails.
+> After matching context exposure, transition structure, training budget, validation targets, and a final long-context recovery stage, does the temporal order of context-length blocks leave a persistent effect on language-model performance?
 
-## 3. Hypotheses and estimands
+The previous experiment observed that descending context order performed about 0.178 BPC worse than ascending curriculum. However, descending training ended at `T=32`, ascending training ended at `T=256`, and evaluation primarily used `T=256`. The previous result therefore combined:
 
-At step 2000, immediately before common recovery:
+1. historical block-order effects;
+2. recency from the final training context;
+3. final-training/evaluation context mismatch;
+4. possible interactions between context length and the late low-learning-rate phase.
+
+The recovery study does not assume that recency disappears after a fixed number of steps. It measures how the paired performance gap changes while all arms receive identical `T=256` recovery training.
+
+## 2. Hypotheses and estimands
+
+For recovery step \(k\), define:
 
 \[
-\Delta_{pre}
+\Delta(k)
 =
-\mathrm{BPC}_{descending,2000}
+\mathrm{BPC}_{descending,\,2000+k}
 -
-\mathrm{BPC}_{ascending,2000}.
+\mathrm{BPC}_{ascending,\,2000+k}.
 \]
 
-After 500 common `T=256` recovery steps:
+The main checkpoints are:
 
 \[
-\Delta_{post}
-=
-\mathrm{BPC}_{descending,2500}
--
-\mathrm{BPC}_{ascending,2500}.
+\Delta_{pre}=\Delta(0)
 \]
 
-If \(|\Delta_{pre}|\ge 0.02\), define:
+and:
 
 \[
-R=\frac{\Delta_{post}}{\Delta_{pre}}.
+\Delta_{post}=\Delta(500).
+\]
+
+Define absolute recovery:
+
+\[
+G_{recovered}=\Delta(0)-\Delta(500).
+\]
+
+Only when:
+
+\[
+|\Delta(0)|\ge 0.02\ \mathrm{BPC}
+\]
+
+may the recovery ratio be interpreted:
+
+\[
+R=\frac{\Delta(500)}{\Delta(0)}.
 \]
 
 ### Primary hypothesis
 
-The original degradation is mainly terminal-context mismatch:
+The original descending degradation is mainly a reversible terminal-context/recency effect:
 
 \[
 R<0.25.
 \]
 
-That is, common long-context recovery removes at least 75% of the gap.
+This means at least 75% of the pre-recovery gap is removed during matched long-context recovery.
 
-### Persistent-effect criterion
+### Persistent-effect candidate
 
-Proceed to a mechanism study only if:
+Evidence is considered sufficient to justify a subsequent mechanism experiment only if all conditions hold:
 
-- mean \(\Delta_{post}>0.03\) BPC;
-- all 3 paired seeds have the same sign;
-- no run failed validity checks.
+1. mean \(\Delta(500)>0.03\) BPC;
+2. all three paired seeds have \(\Delta(500)>0\);
+3. the mean gap has approximately plateaued:
 
-The 0.03 BPC threshold is a project-specific practical threshold, not a universal standard.
+   \[
+   |\Delta(500)-\Delta(400)|<0.01\ \mathrm{BPC};
+   \]
 
-## 4. Experimental arms
+4. no run failed validity or reproducibility checks.
 
-Use seeds `42, 43, 44`.
+This is evidence for a **persistent-effect candidate**, not proof of a permanent or unique mechanism.
 
-Each run contains 2,500 updates and 4,096 tokens/update. The first 2,000 steps contain four 500-step blocks. The last 500 steps are common recovery.
+## 3. Meaning of the thresholds
 
-| Arm | Steps 1–2000 | Steps 2001–2500 |
-|---|---|---|
-| ascending | 32→64→128→256 | 256 |
-| descending | 256→128→64→32 | 256 |
-| nonmonotonic | 64→256→32→128 | 256 |
+The thresholds are project-specific decision rules and must be frozen before training.
 
-The fixed non-monotonic permutation is used for all seeds so the treatment definition does not change by seed.
+### 0.02 BPC: minimum interpretable pre-gap
 
-Optional secondary baseline:
+If \(|\Delta(0)|<0.02\), the denominator of the recovery ratio is too small for stable interpretation. The correct conclusion is that the previous large degradation did not clearly replicate under the matched-block design.
 
-| Arm | Full training |
-|---|---|
-| fixed-long | T=256 for 2,500 steps |
+### 0.25: recovery-ratio criterion
 
-Fixed-long is an engineering baseline, not part of the pure order estimand because its context histogram differs.
+`R < 0.25` means at least 75% of the measured pre-recovery gap was removed. It is a directional decision rule, not a universal scientific constant.
 
-## 5. Controlled variables
+### 0.03 BPC: additional-compute threshold
 
-Hold fixed across primary arms:
+\[
+2^{0.03}\approx1.021.
+\]
 
-- model architecture and parameter count;
-- tokenizer, vocabulary, and dataset split;
-- seed-specific initialization;
-- AdamW configuration and gradient clipping;
+Thus 0.03 BPC corresponds to roughly a 2.1% perplexity ratio. It is the minimum residual effect considered large enough to justify spending additional compute on a mechanism study. It is not a significance boundary or a threshold derived from prior literature.
+
+## 4. Formal experimental arms
+
+Use paired seeds:
+
+```python
+SEEDS = [42, 43, 44]
+```
+
+Each run contains 2,500 optimizer steps and 4,096 target tokens per update.
+
+| Arm | Steps 1–2000 | Steps 2001–2500 | Role |
+|---|---|---|---|
+| `ascending` | 32→64→128→256 | `T=256` recovery | Primary |
+| `descending` | 256→128→64→32 | `T=256` recovery | Primary |
+| `nonmonotonic` | 64→256→32→128 | `T=256` recovery | Exploratory control |
+
+Each pre-recovery block lasts exactly 500 steps.
+
+### Why retain the nonmonotonic arm
+
+`64→256→32→128` is one fixed, prespecified non-monotonic permutation. It:
+
+- exposes every context exactly once before recovery;
+- uses the same 500-step block length;
+- has the same three pre-recovery block boundaries;
+- contains both increasing and decreasing transitions;
+- ends pre-recovery at an intermediate context length.
+
+It does **not** represent the population of all non-monotonic schedules. It is exploratory and is excluded from the primary hypothesis test. Its purpose is to show whether the observed trajectory appears specific to the two monotonic extremes.
+
+Do not describe this arm as a bootstrap or randomized-order estimate.
+
+### Fixed-Long status
+
+Do not rerun Fixed-Long in this study. Existing Fixed-Long results may be shown as a historical engineering reference, clearly labeled as not belonging to the new matched primary comparison.
+
+## 5. What is held constant
+
+Across the three formal arms, hold constant:
+
+- model architecture, parameter count, RoPE implementation, tokenizer, and vocabulary;
+- dataset file, encoding, and train/validation split;
+- seed-specific initial model weights;
+- AdamW configuration, weight decay, epsilon, beta values, and clipping threshold;
+- optimizer-state initialization and the rule that optimizer state is not reset at transitions;
 - global-step learning-rate schedule;
-- 4,096 tokens/update;
-- 500 exposures to each context before recovery;
-- transition count and block length;
-- data manifest indexed by context occurrence;
-- validation target positions;
-- evaluation schedule;
-- final 500-step `T=256` recovery.
+- 2,500 optimizer steps;
+- 4,096 target tokens per update;
+- 500 scheduled steps at each of `T=32,64,128,256`;
+- 500 final recovery steps at `T=256`;
+- pre-recovery block length and block-boundary count;
+- context-specific scheduled data draws;
+- recovery data draws, matched exactly by recovery step;
+- validation examples, target positions, scoring code, and evaluation checkpoints;
+- software environment, code commit, and device settings.
 
-The intended treatment is only the permutation of the four pre-recovery blocks.
+The intended treatment is:
 
-## 6. Code layout
+\[
+\boxed{\text{the temporal permutation of the four pre-recovery context blocks}}.
+\]
 
-Create an isolated implementation rather than modifying the historical experiment in place:
+Because context blocks occur at different global steps, the treatment necessarily includes their interaction with model state, optimizer history, and the fixed global learning-rate trajectory. The estimand is therefore the total block-order effect under this training policy, not an abstract order effect independent of learning rate.
+
+### Remaining transition asymmetry
+
+All arms have the same number of scheduled block boundaries, but entering recovery is not the same actual context switch:
+
+- ascending: `256→256`;
+- descending: `32→256`;
+- nonmonotonic: `128→256`.
+
+This is intentional. The recovery curve measures how effects associated with the immediately preceding context decay under a common target task.
+
+## 6. Tokens per update
+
+Hold:
+
+\[
+B\times T=4096.
+\]
+
+| Context \(T\) | Batch size \(B\) |
+|---:|---:|
+| 32 | 128 |
+| 64 | 64 |
+| 128 | 32 |
+| 256 | 16 |
+
+Every arm sees:
+
+\[
+2500\times4096=10{,}240{,}000
+\]
+
+target tokens.
+
+Token matching is not compute matching. Record measured wall-clock time, seconds per step, and peak MPS memory.
+
+## 7. Code layout
+
+Implement the study separately from the historical experiment:
 
 ```text
 training_dynamics_research/recovery_study/
+├── PREREGISTRATION.md
 ├── config.py
 ├── schedules.py
 ├── manifests.py
@@ -119,7 +227,7 @@ training_dynamics_research/recovery_study/
 └── README.md
 ```
 
-Results:
+Store outputs under:
 
 ```text
 results/recovery_study/
@@ -131,109 +239,261 @@ results/recovery_study/
 └── summary.json
 ```
 
-### Schedule builder
+## 8. Schedule implementation
 
 ```python
+SEEDS = [42, 43, 44]
+
 SCHEDULES = {
     "ascending": [32, 64, 128, 256],
     "descending": [256, 128, 64, 32],
     "nonmonotonic": [64, 256, 32, 128],
 }
 
-def build_schedule(name, block_steps=500, recovery_steps=500):
-    result = []
-    for context_length in SCHEDULES[name]:
-        result.extend([context_length] * block_steps)
-    result.extend([256] * recovery_steps)
-    assert len(result) == 2500
-    return result
+BLOCK_STEPS = 500
+RECOVERY_STEPS = 500
+MAX_STEPS = 2500
+
+
+def build_scheduled_contexts(arm):
+    contexts = []
+    for context_length in SCHEDULES[arm]:
+        contexts.extend([context_length] * BLOCK_STEPS)
+    assert len(contexts) == 2000
+    return contexts
 ```
 
-### Manifest design
+Recovery is implemented separately and must not be appended through the scheduled-context occurrence counters.
 
-Within each seed, all arms use the same draws for the same context-occurrence index. Required occurrences are:
+## 9. Manifest design
+
+Use two explicit namespaces:
 
 ```text
-T=32:   500 steps × batch 128
-T=64:   500 steps × batch 64
-T=128:  500 steps × batch 32
-T=256: 1000 steps × batch 16
+scheduled_manifest
+recovery_manifest
 ```
 
-Maintain a separate occurrence counter per context. The first 500 `T=256` occurrences serve the scheduled block; occurrences 500–999 serve common recovery.
+### Scheduled manifest
 
-Sampling with `randint` is permitted, but document it as sampling with replacement and potentially overlapping windows.
-
-### Required tests
-
-Before training, verify:
-
-1. every schedule is exactly 2,500 steps;
-2. each pre-recovery context appears exactly 500 times;
-3. the final 500 steps are all `T=256`;
-4. every step satisfies `B×T=4096`;
-5. manifest indices are in bounds;
-6. within a seed, arms receive identical draws for the same context occurrence;
-7. different seeds do not have identical manifests;
-8. checkpoints reload and reproduce evaluation output.
-
-## 7. Evaluation
-
-### Fixed validation manifest
-
-Create and save one validation manifest, preferably `64 × 256` tokens. Reuse it for every arm, seed, checkpoint and context horizon. Use microbatches if memory requires it.
-
-### Evaluation times
-
-Evaluate every 100 steps and around transitions:
+For each seed and context length:
 
 ```text
-499, 500, 501, 510, 550
-999, 1000, 1001, 1010, 1050
-1499, 1500, 1501, 1510, 1550
-1999, 2000, 2001, 2010, 2050
-2100, 2200, 2300, 2400, 2500
+T=32:  500 × 128 draws
+T=64:  500 × 64 draws
+T=128: 500 × 32 draws
+T=256: 500 × 16 draws
 ```
 
-Save full model checkpoints at steps 2000 and 2500. Intermediate points need metrics only.
+```python
+def generate_scheduled_manifest(seed, train_length):
+    manifest = {}
 
-### Primary metric
+    for T in [32, 64, 128, 256]:
+        B = 4096 // T
+        rng = np.random.RandomState(seed * 10_000 + T)
+        manifest[T] = rng.randint(
+            0,
+            train_length - T - 1,
+            size=(500, B),
+        )
 
-Fixed-target validation BPC evaluated with `T=256` at steps 2000 and 2500.
+    return manifest
+```
 
-### Secondary metrics
+Within a seed, the \(k\)-th scheduled occurrence of a given context uses the same draws in all arms, regardless of its global step.
 
-- validation BPC AUC for steps 1–2000, 2000–2500, and full training;
+### Recovery manifest
+
+```python
+def generate_recovery_manifest(seed, train_length):
+    rng = np.random.RandomState(seed * 10_000 + 9_999)
+    return rng.randint(
+        0,
+        train_length - 256 - 1,
+        size=(500, 16),
+    )
+```
+
+At recovery step \(k\), every arm within a seed uses exactly `recovery_manifest[k]`.
+
+Sampling uses replacement and text windows may overlap. Do not describe samples as unique or non-overlapping.
+
+### Required manifest assertions
+
+Tests must verify scheduled-manifest equality across arms for each context and recovery-manifest equality across arms. Also verify index bounds, array shapes, and distinct manifests across seeds.
+
+## 10. Validation design
+
+Create one fixed validation manifest:
+
+```python
+N_VAL_SEQUENCES = 64
+VAL_CONTEXT = 256
+```
+
+This provides four times as many evaluation sequences as the previous 16-sequence setup while remaining inexpensive on M3. It does not justify a prespecified claim that effects of ±0.01 BPC are detectable.
+
+All arms, seeds, checkpoints, and context horizons use identical validation endpoints. Microbatching may change for memory reasons, but targets and scoring must not change.
+
+Store loss separately for each validation sequence. Estimate evaluation uncertainty by resampling sequences as blocks. Do not treat individual tokens in the same sequence as independent bootstrap samples.
+
+## 11. Evaluation checkpoints
+
+Routine validation occurs every 100 global steps. Add recovery evaluations at:
+
+```python
+RECOVERY_EVAL_STEPS = [0, 10, 25, 50, 100, 200, 300, 400, 500]
+```
+
+These correspond to global steps:
+
+```text
+2000, 2010, 2025, 2050, 2100, 2200, 2300, 2400, 2500
+```
+
+Save full model checkpoints at global steps 2000 and 2500. Save metrics, but not necessarily model weights, at intermediate recovery points.
+
+## 12. Metrics
+
+### Confirmatory outcomes
+
+- \(\Delta(0)\);
+- \(\Delta(500)\);
+- absolute gap recovered;
+- recovery fraction or ratio when \(|\Delta(0)|\ge0.02\);
+- direction of paired differences across seeds.
+
+### Secondary outcomes
+
+- validation BPC AUC over steps 1–2000;
+- recovery BPC AUC over steps 2000–2500;
 - transition-local validation loss shock;
-- wall-clock, seconds/step, and peak memory;
-- time/tokens to a prespecified BPC threshold, if all arms reach it.
+- wall-clock time, seconds/step, and peak memory;
+- time or tokens to a prespecified BPC threshold, if all arms reach it.
 
-### Context intervention
+### Exploratory outcomes
 
-At checkpoints 2000 and 2500, score identical targets with contexts `32, 64, 128, 256`.
+- nonmonotonic comparisons;
+- descriptive recovery-curve fits;
+- attention entropy, effective rank, or optimizer diagnostics;
+- context-sensitive token analysis.
 
-For each target token:
+Exploratory outcomes cannot retroactively redefine the primary hypothesis.
+
+## 13. Same-target context intervention
+
+At global steps 2000 and 2500, score identical target positions with context horizons `32, 64, 128, 256`.
+
+For target token \(i\), compute:
 
 \[
-C_i=\ell_i(32)-\ell_i(256),
-\qquad
-\ell_i(T)=-\log_2P(x_i\mid c_T).
+\ell_i(T)=-\log_2P(x_i\mid c_T)
 \]
 
-Report:
+and:
 
-- mean and median \(C_i\);
-- fraction with \(C_i>0.1\) bits;
-- BPC on the top 10% most context-sensitive targets;
-- paired ascending–descending difference on those same targets.
+\[
+C_i=\ell_i(32)-\ell_i(256).
+\]
 
-## 8. Runtime discipline on Apple M3 24GB
+Report mean and median \(C_i\), the fraction with \(C_i>0.1\) bits, BPC on the top 10% most context-sensitive targets, and the paired ascending–descending difference on the same targets.
 
-1. Run a reduced smoke test with 10 steps/block, 10 recovery steps, one seed and all arms.
-2. Run one 100-step benchmark before estimating total runtime.
-3. Synchronize MPS before and after timing with `torch.mps.synchronize()`.
-4. Execute formal runs sequentially to avoid memory pressure.
-5. Rotate arm order across seeds:
+The target subset must be defined without selecting whichever subset maximizes the reported arm difference. Prefer a treatment-blind aggregate or an external/reference model.
+
+## 14. Statistical reporting
+
+With three seeds, emphasize estimation rather than significance testing. Report:
+
+- all raw seed-level values;
+- all paired differences;
+- paired mean and paired standard deviation;
+- a 95% paired t interval, explicitly marked as `df=2` and highly uncertain;
+- direction consistency: `3/3`, `2/3`, or `1/3`;
+- the full recovery trajectory.
+
+Do not infer equivalence from `p>0.05`. Permitted wording is:
+
+> No difference was detected with three paired seeds; effects below the study's resolution remain uncertain.
+
+Do not write “same,” “equivalent,” or “no effect” unless a separately powered equivalence design is completed.
+
+## 15. Nonmonotonic analysis policy
+
+The primary confirmatory contrast is always descending minus ascending.
+
+Exploratory contrasts may include:
+
+\[
+\Delta_{N-A}(k)
+=
+\mathrm{BPC}_{nonmonotonic}(k)
+-
+\mathrm{BPC}_{ascending}(k)
+\]
+
+and:
+
+\[
+\Delta_{D-N}(k)
+=
+\mathrm{BPC}_{descending}(k)
+-
+\mathrm{BPC}_{nonmonotonic}(k).
+\]
+
+Rules:
+
+- show all raw seeds and trajectories;
+- do not generalize from one permutation to non-monotonic schedules as a class;
+- do not change the primary hypothesis based on this arm;
+- do not use this arm alone to establish a mechanism.
+
+## 16. Stop/go rules
+
+### Case A: pre-recovery gap does not replicate
+
+If \(|\mathrm{mean}\ \Delta(0)|<0.02\), stop mechanism work and do not interpret the recovery ratio.
+
+### Case B: gap is mostly removed
+
+If \(|\mathrm{mean}\ \Delta(500)|\le0.02\), or interpretable \(R<0.25\), conclude that the result primarily supports a reversible terminal-context/recency explanation. Stop mechanism expansion.
+
+### Case C: result is unresolved
+
+If the remaining mean gap is between 0.02 and 0.03 BPC, or seed directions disagree, report the result as unresolved. Do not claim equivalence or a persistent effect.
+
+### Case D: gap remains large but is still recovering
+
+If mean \(\Delta(500)>0.03\) and mean \(\Delta(400)-\Delta(500)>0.01\), the 500-step recovery is insufficient. Extend **all three arms for all three seeds** by another 500 matched `T=256` steps, using a separately pregenerated `extended_recovery_manifest` shared by recovery step.
+
+### Case E: persistent-effect candidate
+
+Proceed to a targeted optimizer-state experiment only if:
+
+- mean \(\Delta(500)>0.03\);
+- `3/3` paired seeds have positive \(\Delta(500)\);
+- \(|\Delta(500)-\Delta(400)|<0.01\);
+- all validity checks pass.
+
+The next experiment should initially test only:
+
+```text
+order: ascending vs descending
+optimizer treatment: preserve vs reset Adam moments at transitions
+```
+
+Run one exploratory seed first; expand only if the intervention materially changes the gap.
+
+## 17. Runtime procedure on Apple M3 24GB
+
+1. Run schedule and manifest unit tests.
+2. Run a smoke test with 10 steps/block, 10 recovery steps, one seed, and all arms.
+3. Confirm checkpoint reload and identical validation outputs.
+4. Run one 100-step benchmark and record evaluation overhead.
+5. Execute formal runs sequentially.
+6. Synchronize MPS before and after timing with `torch.mps.synchronize()`.
+7. Rotate arm execution order:
 
 ```text
 seed 42: ascending → descending → nonmonotonic
@@ -241,77 +501,68 @@ seed 43: descending → nonmonotonic → ascending
 seed 44: nonmonotonic → ascending → descending
 ```
 
-6. Complete every preregistered arm before interpreting the result.
+8. Complete all nine preregistered runs before interpreting results.
 
-## 9. Statistical reporting
+## 18. Preregistration requirements
 
-With three seeds, emphasize estimation rather than significance testing. Report:
+Before formal training, freeze:
 
-- all raw seed values;
-- paired differences;
-- paired mean and standard deviation;
-- 95% paired t interval, explicitly noting `df=2` and high uncertainty;
-- direction consistency;
-- \(\Delta_{pre}\), \(\Delta_{post}\), recovery ratio and fraction recovered.
+- arms and their exact schedules;
+- seeds;
+- model and optimizer config;
+- manifest generation and RNG namespaces;
+- validation manifest;
+- primary, secondary, and exploratory metrics;
+- recovery checkpoints;
+- the 0.02, 0.25, 0.03, and 0.01 decision thresholds;
+- adaptive-extension rule;
+- run exclusion criteria;
+- code commit and environment metadata.
 
-Do not claim equivalence from a non-significant p-value. Three seeds are intended to detect or reject a large practical effect quickly, not prove a small effect absent.
+Commit `PREREGISTRATION.md` before producing formal results. If a change becomes necessary, add a timestamped amendment explaining whether any formal result had already been observed. Never silently rewrite the frozen specification.
 
-## 10. Stop/go decisions
+## 19. Technical report structure
 
-### A. Pre-recovery gap does not replicate
+1. **Abstract** — question, original confound, matched-recovery design, numerical answer, bounded conclusion.
+2. **Research question** — define recency and persistent path dependence operationally.
+3. **Prior evidence and hypotheses** — separate literature, previous project observations, and preregistered predictions.
+4. **Methods** — arms, held constants, pairing, manifest namespaces, validation, metrics, hardware, and statistical policy.
+5. **Results: pre-recovery replication** — report \(\Delta(0)\) before discussing recovery.
+6. **Results: recovery trajectory** — report \(\Delta(k)\), \(\Delta(500)\), absolute recovery, and ratio when valid.
+7. **Results: exploratory nonmonotonic control** — clearly separated from the primary comparison.
+8. **Results: context-sensitive targets and compute cost**.
+9. **Failed hypotheses and contradictions** — mandatory, including measurement or design surprises.
+10. **Interpretation** — distinguish reversible recency, unresolved residual effects, and persistent-effect candidates.
+11. **Limitations** — three seeds, single model/corpus/tokenizer, context ≤256, overlapping windows, and project-specific thresholds.
+12. **Conclusion** — state whether the original gap replicated, how much recovered, whether mechanism work is justified, and what remains unknown.
 
-If \(|\Delta_{pre}|<0.02\): stop. Conclude that the original large degradation is not robust to the matched-block design.
+## 20. Permitted conclusion templates
 
-### B. Recovery removes at least 75%
+### If the gap disappears
 
-If \(R<0.25\): stop. Conclude that the degradation is predominantly reversible terminal-context/recency effect, not strong evidence of persistent path dependence.
+> Descending context order produced a largely reversible terminal-context effect. After matched long-context recovery, we found no compelling evidence of a large persistent path dependence at this scale. Smaller effects remain unresolved with three seeds.
 
-### C. Partial persistence
+### If the gap remains but recovery is ongoing
 
-If `0.25 ≤ R < 0.75`, describe temporary path dependence. Continue only if all seeds agree in direction and the remaining effect is practically meaningful.
+> A residual difference remained after 500 recovery steps, but the gap was still decreasing. The current experiment cannot distinguish slow recovery from persistent path dependence.
 
-### D. Persistent effect
+### If a stable residual remains
 
-If mean \(\Delta_{post}>0.03\) and all three seeds agree, run a minimal mechanism screen:
+> A directionally consistent residual difference remained after matched long-context recovery and appeared stable over the final recovery interval. This is candidate evidence for persistent path dependence and motivates a targeted optimizer-state intervention; it does not yet establish the mechanism.
 
-```text
-order: ascending vs descending
-optimizer treatment: preserve vs reset Adam moments at transitions
-```
+Never write “the model forgot long-range structure” unless direct token-level or representation evidence supports that claim.
 
-Run one exploratory seed first. Expand to three only if resetting moments materially changes the order gap.
-
-## 11. Technical report structure
-
-1. **Abstract** — question, confound, matched-recovery design, quantitative answer, bounded conclusion.
-2. **Research question** — define persistent path dependence and the estimands.
-3. **Prior evidence and hypotheses** — separate literature, prior project observation, and preregistered prediction.
-4. **Methods** — model/data, schedules, pairing, manifest semantics, metrics, compute and statistical policy.
-5. **Results** — pre-recovery replication, post-recovery gap, recovery trajectory, context-sensitive tokens, compute cost.
-6. **Failed hypotheses and contradictions** — mandatory section; state where predictions failed or measurements disagreed.
-7. **Interpretation** — distinguish reversible recency, temporary path dependence, and persistent order effect.
-8. **Limitations** — three seeds, one small corpus/model/tokenizer, context ≤256, overlapping windows, project-specific thresholds.
-9. **Conclusion** — answer four questions: Did the gap replicate? How much recovered? Is mechanism work justified? What remains unknown?
-
-## 12. Permitted conclusion templates
-
-If recovery removes the gap:
-
-> Descending context order produced a reversible terminal-context effect. After matched long-context recovery, we found no compelling evidence of persistent path dependence at this scale.
-
-If a gap remains:
-
-> A persistent order-dependent difference remained after matched long-context recovery. This supports, but does not yet explain, training path dependence and motivates a targeted optimizer-state intervention.
-
-Never write “the model forgot long-range structure” unless token-level or representation evidence directly supports that mechanism.
-
-## 13. Deliverables
+## 21. Deliverables
 
 - frozen preregistration and any timestamped amendments;
-- isolated experiment implementation and tests;
-- frozen run config and validation manifest;
-- nine complete primary run directories;
-- raw per-seed metrics and summary JSON;
-- learning/recovery curve and context-sensitive-token plot;
-- technical report with failures and unknowns;
+- schedule and manifest unit tests;
+- isolated recovery-study implementation;
+- frozen run config, environment metadata, and validation manifest;
+- nine complete formal run directories;
+- raw per-seed metrics and paired differences;
+- summary JSON;
+- recovery-gap plot and learning curves;
+- context-sensitive-target analysis;
+- wall-clock and memory measurements;
+- technical report with explicit failures, limitations, and unknowns;
 - exact reproduction commands.
