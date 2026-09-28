@@ -36,10 +36,10 @@ After matching context exposure, transition structure, training budget, validati
 
 The primary contrast was
 
-\[
+$$
 \Delta^A(k)=\operatorname{BPC}^{A}_{descending,256}(2000+k)
 -\operatorname{BPC}^{A}_{ascending,256}(2000+k),
-\]
+$$
 
 measured on the 32-sequence anchor panel at recovery steps `k=0` and `k=500`.
 
@@ -47,9 +47,9 @@ measured on the 32-sequence anchor panel at recovery steps `k=0` and `k=500`.
 
 The quantitative hypothesis was that common `T=256` recovery would remove at least 75% of the pre-recovery gap:
 
-\[
+$$
 R=\frac{\Delta^A(500)}{\Delta^A(0)}<0.25.
-\]
+$$
 
 The ratio was descriptive and could not override the absolute residual rules:
 
@@ -122,9 +122,9 @@ The large pre-recovery deficit was specific to evaluation at `T=256`; it was not
 
 On the 16-sequence process panel, the mean `T=256` gap fell from `+0.8097 BPC` at `k=0` to `+0.0719` at `k=10`, crossed zero by `k=50`, and ended at `−0.0195` at `k=500`. The context-alignment contrast
 
-\[
+$$
 A^P(k)=\Delta_{256}^P(k)-\Delta_{32}^P(k)
-\]
+$$
 
 also collapsed rapidly, showing that the initial arm difference became much less dependent on evaluation horizon during common long-context recovery.
 
