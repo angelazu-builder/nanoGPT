@@ -18,6 +18,7 @@ This directory records how an initially broad curriculum-learning question becam
 
 **Historical records.**
 
+- [`history/iteration_1_exploratory_pilot/PREREGISTRATION_RECONSTRUCTED.md`](history/iteration_1_exploratory_pilot/PREREGISTRATION_RECONSTRUCTED.md) — retrospective setup and controls record; not a prospective preregistration.
 - [`history/iteration_1_exploratory_pilot/plan_proposal_original.md`](history/iteration_1_exploratory_pilot/plan_proposal_original.md) — original theory/computation/experiment proposal.
 - [`history/iteration_1_exploratory_pilot/technical_report_v1_retracted.md`](history/iteration_1_exploratory_pilot/technical_report_v1_retracted.md) — original report, retained with its retracted claims for audit.
 
@@ -36,6 +37,7 @@ This directory records how an initially broad curriculum-learning question becam
 
 **Historical records.**
 
+- [`history/iteration_2_paired_pilot/PREREGISTRATION_RECONSTRUCTED.md`](history/iteration_2_paired_pilot/PREREGISTRATION_RECONSTRUCTED.md) — retrospective setup, pairing, and controls record; not a prospective preregistration.
 - [`history/iteration_2_paired_pilot/technical_report_v3_paired_pilot.md`](history/iteration_2_paired_pilot/technical_report_v3_paired_pilot.md) — corrected full analysis.
 - [`history/iteration_2_paired_pilot/technical_report_v2_legacy.md`](history/iteration_2_paired_pilot/technical_report_v2_legacy.md) — legacy summary retained for audit; it contains language later judged too strong.
 
@@ -57,7 +59,8 @@ This directory records how an initially broad curriculum-learning question becam
 
 - [`recovery_study/TECHNICAL_REPORT_final.md`](recovery_study/TECHNICAL_REPORT_final.md) — final technical report with the complete preregistered figure set and post-results paper figures.
 - [`recovery_study/README.md#preregistered-figure-gallery`](recovery_study/README.md#preregistered-figure-gallery) — browsable gallery of Main Figures 1–5 and Appendix Figures A1–A5.
-- [`recovery_study/PREREGISTRATION.md`](recovery_study/PREREGISTRATION.md) and [`PREREGISTRATION_AMENDMENT_001_FIGURES.md`](recovery_study/PREREGISTRATION_AMENDMENT_001_FIGURES.md) — frozen design, estimands, decision rules, and figure contract.
+- [`recovery_study/PREREGISTRATION.md`](recovery_study/PREREGISTRATION.md) — prospective preregistration with setup, held constants, estimands, and decision rules, frozen before formal training.
+- [`recovery_study/PREREGISTRATION_AMENDMENT_001_FIGURES.md`](recovery_study/PREREGISTRATION_AMENDMENT_001_FIGURES.md) — figure and process-analysis contract, frozen before formal results were produced or inspected.
 - [`../results/recovery_study/`](../results/recovery_study/) — formal run artifacts, tidy tables, registered figures, and versioned paper figures.
 - [`../results/recovery_study/figures/main_02_recovery_gap_by_horizon.png`](../results/recovery_study/figures/main_02_recovery_gap_by_horizon.png) — direct link to the central preregistered recovery trajectory figure.
 - [`paper_icml2026/paper_final.tex`](paper_icml2026/paper_final.tex) and [`../output/pdf/context_order_recovery_icml2026_final.pdf`](../output/pdf/context_order_recovery_icml2026_final.pdf) — manuscript source and compiled paper.

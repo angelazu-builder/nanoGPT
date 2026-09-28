@@ -984,3 +984,23 @@ Two substantive results had remained visible only in plots or tables and were ad
 2. **Exploratory nonmonotonic evidence**: before recovery, the nonmonotonic arm's `T=256` mean BPC was `2.2311`, close to ascending (`2.2410`) and far better than descending (`2.9980`). This argues against “any non-ascending schedule fails,” but one permutation cannot support a general claim.
 
 AUC, transition-shock, and per-target sensitivity outputs remain available in formal artifacts and registered figures. They were not promoted to headline findings because they do not independently change the central interpretation.
+
+---
+
+## Phase 55 — Three-Iteration Protocol and Held-Constant Records (2026-09-28)
+
+**Action**: Added a setup-and-controls document for every research iteration and linked all three from the research reading map.
+
+### Provenance rule
+
+- Iteration 3 retains its genuine prospective `PREREGISTRATION.md`, frozen before formal training.
+- Iterations 1 and 2 did not have frozen preregistrations. Their new files are therefore named `PREREGISTRATION_RECONSTRUCTED.md` and explicitly state that they were reconstructed after results from historical code, proposals, reports, and artifacts.
+- The reconstructed documents must not be cited as prospective preregistrations.
+
+### What the comparison now exposes
+
+- Iteration 1 held architecture, seed, optimizer, learning-rate schedule, steps, token throughput, and validation batch constant, but did not pair training draws and did not isolate order from terminal context or learning-rate phase.
+- Iteration 2 added five seeds, identical initialization within seed, context-specific paired data pools, fixed validation sequences, and fixed target positions, but still bundled order with terminal context, optimizer history, and context-by-learning-rate phase.
+- Iteration 3 added common long-context recovery, multi-horizon evaluation, nested process/anchor panels, execution-order rotation, formal completeness gates, and prospective decision rules.
+
+This makes the increasing strength of the controls visible without rewriting the first two iterations as more rigorous than they actually were.
