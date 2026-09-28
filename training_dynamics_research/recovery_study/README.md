@@ -34,7 +34,9 @@ results/recovery_study/
 ├── seed_44/{ascending,descending,nonmonotonic}/
 ├── figures/
 │   ├── data/            # Five canonical tidy CSV tables
-│   ├── paper/           # 3 main + 2 appendix manuscript figures (PNG and vector PDF)
+│   ├── paper/
+│   │   ├── v3_r2/       # Preserved first paper-quality draft
+│   │   └── v3_r3/       # Current 3-main + 2-appendix manuscript set (PNG/PDF)
 │   ├── main_01_*.png ... main_05_*.png
 │   └── appendix_A1_*.png ... appendix_A5_*.png
 └── summary.json

@@ -447,7 +447,7 @@ def plot_paper_figures(
 ) -> None:
     """Render the post-results manuscript figure set."""
     _set_publication_style()
-    output_dir = os.path.join(figures_dir, "paper")
+    output_dir = os.path.join(figures_dir, "paper", "v3_r3")
     os.makedirs(output_dir, exist_ok=True)
     recovery_steps, recovery_k = _recovery_axis(checkpoints, summary["base_pre_step"])
 
