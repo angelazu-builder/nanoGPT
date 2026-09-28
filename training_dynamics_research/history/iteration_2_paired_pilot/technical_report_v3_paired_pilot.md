@@ -190,6 +190,12 @@ The Δ = +0.178 BPC is a reliable **observation** — Anti-Curriculum is robustl
 
 ## 4. Results
 
+### Five-seed corrected results dashboard
+
+> **Reading note:** This dashboard summarizes the paired five-seed pilot. Labels such as “approximately equal” denote small observed mean differences, not a formal equivalence test. The terminal anti-curriculum gap remained confounded with final context, learning-rate phase, and optimizer history; Iteration 3 was designed to address that ambiguity.
+
+![CE-3 corrected five-seed training dynamics dashboard](../../../results/ce3_corrected_dashboard.png)
+
 ### 4.1 Initialization Gradient Noise (Unchanged from original study)
 
 | T | B | Tr(Σ) | B_crit |

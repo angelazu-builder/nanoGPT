@@ -78,6 +78,12 @@ We trained four arms of `MiniTransformerLM` ($d_{\text{model}}=256, n_{\text{hea
 
 ## 4. 📊 Results & Comparative Summary
 
+### Historical training-dynamics figure
+
+> **Audit warning:** This figure belongs to the exploratory single-seed iteration. Its rank, entropy, and mechanism annotations were later judged overinterpreted and should not be treated as current causal conclusions.
+
+![Historical single-seed training dynamics comparison](../../../results/curriculum_dynamics_comparison.png)
+
 ### Final Evaluation Summary (Step 2500)
 
 | Experimental Arm | Final Val Loss (Nats) | Final Val BPC | Effective Rank $\text{Rank}_{\text{eff}}$ | Attention Entropy $\bar{\mathcal{H}}$ | Status / Assessment |

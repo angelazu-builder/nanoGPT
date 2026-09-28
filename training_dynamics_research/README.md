@@ -21,6 +21,11 @@ This directory records how an initially broad curriculum-learning question becam
 - [`history/iteration_1_exploratory_pilot/plan_proposal_original.md`](history/iteration_1_exploratory_pilot/plan_proposal_original.md) — original theory/computation/experiment proposal.
 - [`history/iteration_1_exploratory_pilot/technical_report_v1_retracted.md`](history/iteration_1_exploratory_pilot/technical_report_v1_retracted.md) — original report, retained with its retracted claims for audit.
 
+**Result figures.** These are historical exploratory visualizations, not current causal evidence.
+
+- [Theory–computation–experiment dashboard](../results/theory_computation_experiment_dashboard.png)
+- [Training dynamics comparison](../results/curriculum_dynamics_comparison.png)
+
 ## Iteration 2 — Corrected paired pilot
 
 **Question.** Does the terminal difference remain after paired data and corrected measurement?
@@ -34,6 +39,10 @@ This directory records how an initially broad curriculum-learning question becam
 - [`history/iteration_2_paired_pilot/technical_report_v3_paired_pilot.md`](history/iteration_2_paired_pilot/technical_report_v3_paired_pilot.md) — corrected full analysis.
 - [`history/iteration_2_paired_pilot/technical_report_v2_legacy.md`](history/iteration_2_paired_pilot/technical_report_v2_legacy.md) — legacy summary retained for audit; it contains language later judged too strong.
 
+**Result figure.**
+
+- [Five-seed corrected training-dynamics dashboard](../results/ce3_corrected_dashboard.png)
+
 ## Iteration 3 — Preregistered recovery study
 
 **Question.** Does the large positive descending deficit persist when all arms enter the same long-context training condition?
@@ -46,9 +55,12 @@ This directory records how an initially broad curriculum-learning question becam
 
 **Implementation and evidence.**
 
-- `recovery_study/` — executable package, preregistration, final technical report, and tests.
-- `../results/recovery_study/` — formal run artifacts, tidy tables, registered figures, and versioned paper figures.
-- `paper_icml2026/` — final manuscript source and bibliography.
+- [`recovery_study/TECHNICAL_REPORT_final.md`](recovery_study/TECHNICAL_REPORT_final.md) — final technical report with the complete preregistered figure set and post-results paper figures.
+- [`recovery_study/README.md#preregistered-figure-gallery`](recovery_study/README.md#preregistered-figure-gallery) — browsable gallery of Main Figures 1–5 and Appendix Figures A1–A5.
+- [`recovery_study/PREREGISTRATION.md`](recovery_study/PREREGISTRATION.md) and [`PREREGISTRATION_AMENDMENT_001_FIGURES.md`](recovery_study/PREREGISTRATION_AMENDMENT_001_FIGURES.md) — frozen design, estimands, decision rules, and figure contract.
+- [`../results/recovery_study/`](../results/recovery_study/) — formal run artifacts, tidy tables, registered figures, and versioned paper figures.
+- [`../results/recovery_study/figures/main_02_recovery_gap_by_horizon.png`](../results/recovery_study/figures/main_02_recovery_gap_by_horizon.png) — direct link to the central preregistered recovery trajectory figure.
+- [`paper_icml2026/paper_final.tex`](paper_icml2026/paper_final.tex) and [`../output/pdf/context_order_recovery_icml2026_final.pdf`](../output/pdf/context_order_recovery_icml2026_final.pdf) — manuscript source and compiled paper.
 
 ## Why the documents have different roles
 
