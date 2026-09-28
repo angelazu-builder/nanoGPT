@@ -838,3 +838,149 @@ Added full "External Critique Response" section to `technical_report_v3_analysis
   - Identified the untracked 122MB binary `best_model.pt` in root and drafted `.gitignore` rules to prevent repository bloat.
   - Designed the verification gate ensuring all 11 unit tests in `test_study.py` pass seamlessly post-migration.
 
+---
+
+## Phase 49 — Registered-Decision Correction and Independent Recovery Report (2026-09-28)
+
+**Action**: Re-audited the formal result against the literal preregistered decision rules, corrected the analysis, regenerated summaries and registered plots, and wrote an independent recovery-study technical report.
+
+### Correction to Phase 46
+
+Phase 46 recorded the result as “Case B,” “completely erased,” and “recency confirmed.” Those statements were too strong and are superseded by this correction.
+
+- Registered Case B required `|mean Δᴬ(500)| ≤ 0.02 BPC`.
+- The observed endpoint was `mean Δᴬ(500) = −0.0485 BPC`.
+- Its magnitude was therefore `0.0485 BPC`, outside the registered practical-removal band.
+- A negative recovery ratio could not override the absolute endpoint rule.
+- Correct registered outcome: **Case C — large deficit reversed; residual sign reversal unresolved**.
+
+The original large positive deficit did not persist, but the study did not establish equivalence or prove a unique recency mechanism.
+
+### Analysis and Artifact Corrections
+
+- Restored the absolute Case B criterion in code and tests.
+- Rebuilt `summary.json` with the corrected Case C decision.
+- Repaired Main Figures 2–4 and Appendix Figures A3–A5.
+- Replaced `recovery_contrasts.csv` with actual checkpoint-level process recovery contrasts.
+- Recorded separate training, corrected-analysis, registered-figure, and post-results figure commits.
+- Created `training_dynamics_research/recovery_study/TECHNICAL_REPORT_final.md` as the audit-oriented report, distinct from the paper.
+
+### Attribution
+
+- 👤 **Learner / User**: Insisted that the absolute preregistered rule be restored, required the formal result to be labeled “large deficit reversed; residual sign reversal unresolved,” and requested separation of training, analysis, and figure provenance.
+- 🤖 **Assistant**: Implemented the corrected decision logic, regenerated derived artifacts without rerunning training, and rewrote the recovery-study report around the corrected evidence boundary.
+
+---
+
+## Phase 50 — Paper Narrative, Figure Hierarchy, and ICML-Style Manuscript (2026-09-28)
+
+**Action**: Separated the roles of a technical report and a conference paper, iterated the manuscript figures through preserved versioned rounds, and produced an ICML-style paper.
+
+### Decisions
+
+- Technical report role: preserve protocol, failures, corrections, provenance, full registered figures, and unresolved questions.
+- Paper role: compress the strongest defensible argument for an external scientific audience.
+- Final manuscript hierarchy selected by the learner:
+  1. primary result — rapid reversal of the large deficit;
+  2. methodological contribution — paired endpoints plus process and multi-horizon measurement;
+  3. supporting evidence — horizon specificity;
+  4. nonmonotonic evidence — appendix only.
+- Figure rounds were preserved as `v3_r1`, `v3_r2`, and `v3_r3` rather than overwritten.
+- Manuscript metadata: Anqi Zu, University of Oxford, `angela.zoo@foxmail.com`; manuscript status is preprint, not accepted work.
+
+### Deliverables
+
+- `training_dynamics_research/paper_icml2026/paper_final.tex`
+- `training_dynamics_research/paper_icml2026/paper_final.pdf`
+- `output/pdf/context_order_recovery_icml2026_final.pdf`
+- Three main paper figures and two appendix figures under `results/recovery_study/figures/paper/v3_r3/`.
+
+### Attribution
+
+- 👤 **Learner / User**: Chose the result/method/support hierarchy, required the nonmonotonic arm to remain in the appendix, required preservation of figure rounds, and supplied author metadata.
+- 🤖 **Assistant**: Audited figures against ICML/NeurIPS conventions, implemented the final figure hierarchy and captions, and drafted and compiled the manuscript.
+
+---
+
+## Phase 51 — Repository Reorganization and Final-Artifact Naming (2026-09-28)
+
+**Action**: Reorganized the repository to make the learning and research process legible without splitting it into separate repositories.
+
+### Final Structure
+
+- Root READMEs now distinguish two connected tasks: building/training nanoGPT and conducting training-dynamics research.
+- The research is presented as three iterations:
+  1. exploratory single-seed pilot with invalid or overinterpreted diagnostics;
+  2. paired five-seed controlled pilot that replicated the descending deficit but retained a terminal-context confound;
+  3. preregistered three-arm recovery study.
+- Historical reports were moved under iteration-specific `history/` directories and labeled `retracted`, `legacy`, or `paired_pilot` rather than presented as coequal final reports.
+- Only true deliverables receive `_final`; executable Python modules and machine-readable result files retain stable names so imports and reproduction commands do not break.
+- Added a dedicated research reading map at `training_dynamics_research/README.md`.
+
+**Commit**: `2e1d543` (`docs: organize research history and final deliverables`).
+
+### Correction to Phase 48
+
+Phase 48 documented a proposed four-tier migration using new `nanogpt/`, `research/`, and `milestones/` directories. That proposal was not executed. The implemented reorganization was deliberately smaller: preserve executable paths, archive only report history, improve navigation, and avoid a breaking source-tree migration.
+
+---
+
+## Phase 52 — Researcher-Narrative Revision and Audience Calibration (2026-09-28)
+
+**Action**: Rewrote “How I arrived at this study” to reflect the learner's actual intellectual development rather than an impersonal experiment summary.
+
+### Narrative Logic
+
+1. An exploratory result showed a `0.17 BPC` descending disadvantage but had one seed and measurement problems.
+2. A paired five-seed redesign made the ordering interpretation appear stronger.
+3. Literature review introduced the discipline of seeking the strongest alternative explanation.
+4. Only then were terminal-context recency, optimizer state, and learning-rate phase recognized as competing explanations.
+5. The recovery study was designed to eliminate or reduce those ambiguities.
+6. The result did not support the hoped-for persistent-ordering interpretation, so the interpretation was revised rather than protected.
+
+The accessible conclusion was shortened to: **the large effect of training order did not persist; final performance was driven mainly by the most recent training context, although a smaller ordering effect cannot yet be ruled out.** The formal statistical boundary remains available in the abstract and results sections.
+
+### Attribution
+
+- 👤 **Learner / User**: Required the narrative to show openness, learning capacity, personal investment in the original hypothesis, and honesty when the result was unfavorable; repeatedly removed technical or performative phrasing that did not advance that story.
+- 🤖 **Assistant**: Reworked the section to preserve the learner's process-oriented voice while keeping the formal claims calibrated.
+
+---
+
+## Phase 53 — Preregistered Figure Visibility and Markdown Math Repair (2026-09-28)
+
+**Action**: Made the complete experiment-before-results visualization contract visible outside the paper and repaired Markdown math rendering.
+
+### Figure Audit
+
+- Embedded all ten figures frozen in `PREREGISTRATION_AMENDMENT_001_FIGURES.md`:
+  - Main Figures 1–5;
+  - Appendix Figures A1–A5.
+- Added the complete registered figure set to `TECHNICAL_REPORT_final.md`.
+- Added a browsable gallery to `training_dynamics_research/recovery_study/README.md`.
+- Kept registered audit figures explicitly separate from the post-results paper presentation layer.
+- Verified all embedded image paths.
+
+### Rendering Repair
+
+- Replaced unsupported `\[ ... \]` Markdown delimiters with `$$ ... $$`.
+- Replaced the disallowed `\operatorname{BPC}` macro with compatible `\mathrm{BPC}` notation.
+
+**Commits**: `f679a34`, `4959636`, and `2b3bf4d`.
+
+---
+
+## Phase 54 — Final Highlight Audit (2026-09-28)
+
+**Action**: Cross-checked the final technical report against the frozen design, corrected summary, canonical tidy tables, registered figures, manuscript claims, Git history, and prior supervision record.
+
+### Coverage Verdict
+
+The report already contained the primary endpoint, uncertainty, rapid recovery trajectory, horizon specificity, held constants, nested evaluation design, formal completeness gate, all registered figures, limitations, provenance, and the separation between audit and manuscript figures.
+
+Two substantive results had remained visible only in plots or tables and were added to the prose:
+
+1. **Arm-specific recovery decomposition**: at `T=256`, descending mean BPC improved from `2.9980` to `2.2345` (`−0.7635 BPC`), whereas ascending changed from `2.2410` to `2.2830` (`+0.0421 BPC`). The reversal was therefore driven mainly by descending recovery rather than reference-arm drift.
+2. **Exploratory nonmonotonic evidence**: before recovery, the nonmonotonic arm's `T=256` mean BPC was `2.2311`, close to ascending (`2.2410`) and far better than descending (`2.9980`). This argues against “any non-ascending schedule fails,” but one permutation cannot support a general claim.
+
+AUC, transition-shock, and per-target sensitivity outputs remain available in formal artifacts and registered figures. They were not promoted to headline findings because they do not independently change the central interpretation.

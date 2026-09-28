@@ -128,7 +128,13 @@ $$
 
 also collapsed rapidly, showing that the initial arm difference became much less dependent on evaluation horizon during common long-context recovery.
 
+The anchor endpoints show that this reversal was driven mainly by recovery of the descending arm, not by comparable deterioration of the ascending arm. At `T=256`, mean descending BPC improved from `2.9980` to `2.2345` (`−0.7635 BPC`), while mean ascending BPC changed from `2.2410` to `2.2830` (`+0.0421 BPC`). Thus the large original contrast was not removed merely because the reference arm drifted toward the descending model.
+
 These trajectories support a terminal-context-sensitive interpretation of the large positive deficit. They do not determine whether the smaller negative residual reflects noise, optimization history, or another source of path dependence.
+
+### 6.3 Exploratory nonmonotonic arm
+
+Before recovery, the nonmonotonic arm ended at `T=128` and achieved mean anchor BPC `2.2311` at evaluation horizon `T=256`, close to ascending (`2.2410`) and far below descending (`2.9980`). After recovery, its mean was `2.2175`. This observation argues against the broad claim that any departure from a monotonic ascending schedule produces the same long-context deficit. However, it comes from one prespecified permutation and cannot identify which feature of that schedule mattered or support a general claim about nonmonotonic curricula.
 
 ## 7. Contradiction and corrected interpretation
 
