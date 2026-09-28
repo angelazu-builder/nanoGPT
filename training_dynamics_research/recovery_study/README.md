@@ -44,6 +44,57 @@ results/recovery_study/
 
 ---
 
+## Preregistered Figure Gallery
+
+These are the complete formal figures frozen in `PREREGISTRATION_AMENDMENT_001_FIGURES.md` before the results were inspected. They are the study's audit figures, distinct from the later paper-presentation figures under `figures/paper/`. Full captions and interpretation appear in `TECHNICAL_REPORT_final.md`.
+
+### Main Figure 1 — Training trajectories by evaluation horizon
+
+![Preregistered Main Figure 1](../../results/recovery_study/figures/main_01_training_trajectories_by_horizon.png)
+
+### Main Figure 2 — Recovery gap by evaluation horizon
+
+![Preregistered Main Figure 2](../../results/recovery_study/figures/main_02_recovery_gap_by_horizon.png)
+
+### Main Figure 3 — Anchor heatmap before recovery
+
+![Preregistered Main Figure 3](../../results/recovery_study/figures/main_03_anchor_heatmap_step2000.png)
+
+### Main Figure 4 — Anchor heatmap after recovery
+
+![Preregistered Main Figure 4](../../results/recovery_study/figures/main_04_anchor_heatmap_step2500.png)
+
+### Main Figure 5 — Pre-to-post anchor change
+
+![Preregistered Main Figure 5](../../results/recovery_study/figures/main_05_pre_post_change_heatmap.png)
+
+<details>
+<summary><strong>Preregistered appendix figures A1–A5</strong></summary>
+
+### Appendix Figure A1 — Transition-local shock
+
+![Preregistered Appendix Figure A1](../../results/recovery_study/figures/appendix_A1_transition_shock.png)
+
+### Appendix Figure A2 — Context profiles
+
+![Preregistered Appendix Figure A2](../../results/recovery_study/figures/appendix_A2_context_profiles.png)
+
+### Appendix Figure A3 — Paired seed endpoints
+
+![Preregistered Appendix Figure A3](../../results/recovery_study/figures/appendix_A3_paired_seed_endpoints.png)
+
+### Appendix Figure A4 — Context-alignment contrast
+
+![Preregistered Appendix Figure A4](../../results/recovery_study/figures/appendix_A4_context_alignment.png)
+
+### Appendix Figure A5 — Nonmonotonic exploratory contrasts
+
+![Preregistered Appendix Figure A5](../../results/recovery_study/figures/appendix_A5_nonmonotonic_exploratory.png)
+
+</details>
+
+---
+
 ## Quickstart & Execution Commands
 
 ### 1. Run Unit Tests (Schedules, Manifests, & Synthetic Decisions)

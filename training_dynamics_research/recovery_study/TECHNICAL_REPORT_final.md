@@ -144,7 +144,71 @@ The corrected interpretation is:
 4. the reversed residual is larger than the registered equivalence threshold but uncertain with three seeds;
 5. therefore the primary endpoint is unresolved, while a large persistent descending deficit is not supported.
 
-## 8. Limitations and remaining unknowns
+## 8. Preregistered figure set
+
+The following ten figures are the complete visualization set frozen in `PREREGISTRATION_AMENDMENT_001_FIGURES.md` before the formal results were inspected. They are shown in the registered order and none has been omitted on the basis of its result. These figures form the audit layer of this report; the later paper figures are a separate post-results presentation layer.
+
+### Main Figure 1 — Training trajectories by evaluation horizon
+
+![Preregistered Main Figure 1: training trajectories by evaluation horizon](../../results/recovery_study/figures/main_01_training_trajectories_by_horizon.png)
+
+Process-panel validation BPC over global training steps for all three arms, four evaluation horizons, and three seeds. Vertical lines mark the registered context-block boundaries. No smoothing or interpolation is used.
+
+### Main Figure 2 — Recovery gap by evaluation horizon
+
+![Preregistered Main Figure 2: recovery gap by evaluation horizon](../../results/recovery_study/figures/main_02_recovery_gap_by_horizon.png)
+
+Descending-minus-ascending process-panel BPC during common recovery. The four trajectories test whether the original gap was specific to long-context evaluation or shared across horizons.
+
+### Main Figure 3 — Anchor heatmap before recovery
+
+![Preregistered Main Figure 3: anchor heatmap before recovery](../../results/recovery_study/figures/main_03_anchor_heatmap_step2000.png)
+
+Mean anchor-panel BPC immediately before common recovery. The nonmonotonic arm is exploratory. This figure uses the same absolute color scale as Main Figure 4.
+
+### Main Figure 4 — Anchor heatmap after recovery
+
+![Preregistered Main Figure 4: anchor heatmap after recovery](../../results/recovery_study/figures/main_04_anchor_heatmap_step2500.png)
+
+Mean anchor-panel BPC after 500 common `T=256` recovery steps, using the same matrix structure and color limits as the pre-recovery heatmap.
+
+### Main Figure 5 — Pre-to-post anchor change
+
+![Preregistered Main Figure 5: pre-to-post anchor change](../../results/recovery_study/figures/main_05_pre_post_change_heatmap.png)
+
+Mean change in anchor BPC from step 2000 to step 2500. Negative values indicate improvement; the zero-centered diverging scale shows where recovery changed performance most.
+
+### Appendix Figure A1 — Transition-local shock
+
+![Preregistered Appendix Figure A1: transition-local shock](../../results/recovery_study/figures/appendix_A1_transition_shock.png)
+
+Immediate process-panel changes across each registered context transition. This is descriptive evidence and does not by itself identify an optimizer mechanism.
+
+### Appendix Figure A2 — Context profiles
+
+![Preregistered Appendix Figure A2: context profiles](../../results/recovery_study/figures/appendix_A2_context_profiles.png)
+
+Line-based anchor profiles across evaluation horizons before and after recovery, with raw seed points visible.
+
+### Appendix Figure A3 — Paired seed endpoints
+
+![Preregistered Appendix Figure A3: paired seed endpoints](../../results/recovery_study/figures/appendix_A3_paired_seed_endpoints.png)
+
+For each seed, the registered descending-minus-ascending anchor contrast before and after recovery. Lines indicate pairing between two measured endpoints, not intermediate trajectories.
+
+### Appendix Figure A4 — Context-alignment contrast
+
+![Preregistered Appendix Figure A4: context-alignment contrast](../../results/recovery_study/figures/appendix_A4_context_alignment.png)
+
+The extent to which the descending-versus-ascending contrast depends on evaluation horizon during recovery, shown for each seed and their mean.
+
+### Appendix Figure A5 — Nonmonotonic exploratory contrasts
+
+![Preregistered Appendix Figure A5: one prespecified nonmonotonic permutation](../../results/recovery_study/figures/appendix_A5_nonmonotonic_exploratory.png)
+
+Exploratory contrasts involving one prespecified nonmonotonic permutation. The result must not be generalized to nonmonotonic schedules as a class.
+
+## 9. Limitations and remaining unknowns
 
 - Three seeds provide weak precision for effects near `0.05 BPC`; the post-recovery 95% interval spans both moderate negative and small positive effects.
 - The study distinguishes recovery behavior, not a unique mechanism. It does not isolate optimizer moments, representation changes, or data memorization.
@@ -155,11 +219,11 @@ The corrected interpretation is:
 
 The central remaining question is whether the approximately `−0.05 BPC` post-recovery contrast replicates with greater precision. The present study does not justify a targeted optimizer-state mechanism experiment because the preregistered positive-persistence condition was not met.
 
-## 9. Conclusion
+## 10. Conclusion
 
 The experiment rejects the simple claim that descending context order leaves a large positive performance deficit after matched long-context recovery. The original `T=256` deficit was large, horizon-specific, and rapidly reversible. However, recovery did not place the paired mean inside the preregistered practical-removal band; it produced a small sign reversal whose confidence interval crosses zero. The defensible conclusion is therefore **large deficit reversed; residual sign reversal unresolved**, not equivalence, confirmation of a unique recency mechanism, or evidence of persistent positive path dependence.
 
-## 10. Provenance and reproduction
+## 11. Provenance and reproduction
 
 | Stage | Commit |
 |---|---|
@@ -186,7 +250,7 @@ Primary artifacts:
 - `results/recovery_study/figures/appendix_A4_context_alignment.png`
 - `results/recovery_study/figures/appendix_A5_nonmonotonic_exploratory.png`
 
-## 11. Post-results paper visualization layer
+## 12. Post-results paper visualization layer
 
 The registered figures above remain the audit layer. The manuscript layer was created after inspecting the results and changes no data, estimand, threshold, decision rule, or conclusion. The narrative is deliberately hierarchical: rapid reversal is the primary result; the need to combine process, anchor, and multi-horizon measurements is the methodological contribution; horizon dependence is supporting evidence. The nonmonotonic arm remains exploratory and appears only in the appendix. Each figure is exported as a 300-dpi PNG preview and a vector PDF for manuscript use.
 
