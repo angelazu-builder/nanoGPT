@@ -1,13 +1,15 @@
-"""Post-results paper figures built from the frozen recovery-study artifacts.
+"""Publication figures built from the frozen recovery-study artifacts.
 
-These figures change presentation, not estimands or decision rules. The
-preregistered contract figures remain available in the parent figures folder.
+This module is a post-results presentation layer. It changes neither the
+registered estimands nor the decision rules, and it preserves the registered
+contract figures in the parent output directory.
 """
 
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence, Tuple
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,15 +26,35 @@ HORIZON_COLORS = {
 }
 PRE_COLOR = "#0072B2"
 POST_COLOR = "#D55E00"
-RAW_ALPHA = 0.24
+ALIGNMENT_COLOR = "#006D77"
+NONMONOTONIC_COLORS = ("#CC79A7", "#0072B2")
+RAW_ALPHA = 0.28
 
 
-def _save(fig: plt.Figure, output_dir: str, filename: str) -> None:
-    fig.savefig(os.path.join(output_dir, filename), dpi=220, bbox_inches="tight")
+def _set_publication_style() -> None:
+    plt.rcParams.update(
+        {
+            "font.size": 8.5,
+            "axes.labelsize": 9,
+            "xtick.labelsize": 8,
+            "ytick.labelsize": 8,
+            "legend.fontsize": 8,
+            "axes.linewidth": 0.8,
+            "lines.linewidth": 1.4,
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
+        }
+    )
+
+
+def _save(fig: plt.Figure, output_dir: str, stem: str) -> None:
+    """Save a raster preview and a vector manuscript artifact."""
+    fig.savefig(os.path.join(output_dir, f"{stem}.png"), dpi=300, bbox_inches="tight")
+    fig.savefig(os.path.join(output_dir, f"{stem}.pdf"), bbox_inches="tight")
     plt.close(fig)
 
 
-def _recovery_axis(checkpoints: List[int], pre_step: int) -> tuple[List[int], List[int]]:
+def _recovery_axis(checkpoints: List[int], pre_step: int) -> Tuple[List[int], List[int]]:
     steps = [step for step in checkpoints if step >= pre_step]
     return steps, [step - pre_step for step in steps]
 
@@ -40,265 +62,380 @@ def _recovery_axis(checkpoints: List[int], pre_step: int) -> tuple[List[int], Li
 def _process_gap(
     tables: StudyTables,
     seed: int,
-    steps: List[int],
+    steps: Sequence[int],
     horizon: int,
 ) -> np.ndarray:
-    return np.asarray([
-        tables.process_bpc(seed, "descending", step, horizon)
-        - tables.process_bpc(seed, "ascending", step, horizon)
-        for step in steps
-    ])
+    return np.asarray(
+        [
+            tables.process_bpc(seed, "descending", step, horizon)
+            - tables.process_bpc(seed, "ascending", step, horizon)
+            for step in steps
+        ]
+    )
 
 
-def _style_effect_axis(ax: plt.Axes) -> None:
-    ax.axvline(0.0, color="black", lw=1, zorder=0)
-    ax.grid(axis="x", alpha=0.22)
+def _trajectories(
+    tables: StudyTables,
+    active_seeds: Sequence[int],
+    steps: Sequence[int],
+    horizon: int,
+) -> np.ndarray:
+    return np.asarray([_process_gap(tables, seed, steps, horizon) for seed in active_seeds])
+
+
+def _panel_label(ax: plt.Axes, label: str) -> None:
+    ax.text(
+        -0.12,
+        1.04,
+        label,
+        transform=ax.transAxes,
+        fontsize=10,
+        fontweight="bold",
+        va="bottom",
+    )
+
+
+def _clean_axis(ax: plt.Axes, grid_axis: str = "both") -> None:
+    ax.grid(axis=grid_axis, alpha=0.18, linewidth=0.7)
     ax.spines[["top", "right"]].set_visible(False)
 
 
-def _plot_recovery_dynamics(
+def _draw_trajectory(
+    ax: plt.Axes,
+    x: Sequence[int],
+    values: np.ndarray,
+    color: str,
+    show_legend: bool = False,
+) -> np.ndarray:
+    for row in values:
+        ax.plot(x, row, color=color, alpha=RAW_ALPHA, lw=0.9, marker="o", markersize=2.5)
+    mean_values = np.mean(values, axis=0)
+    ax.plot(
+        x,
+        mean_values,
+        color=color,
+        lw=2.2,
+        marker="o",
+        markersize=4.5,
+        label="Mean" if show_legend else None,
+    )
+    ax.axhline(0.0, color="black", lw=0.8)
+    _clean_axis(ax)
+    return mean_values
+
+
+def _draw_paired_endpoints(ax: plt.Axes, summary: Dict[str, Any]) -> None:
+    pre = summary["stats_pre"]
+    post = summary["stats_post_500"]
+    ax.axhspan(
+        -THRESHOLD_MIN_PRE_GAP,
+        THRESHOLD_MIN_PRE_GAP,
+        color="0.65",
+        alpha=0.18,
+        label=rf"Practical-removal band ($\pm${THRESHOLD_MIN_PRE_GAP:.2f})",
+    )
+    for pre_value, post_value in zip(pre["raw_diffs"], post["raw_diffs"]):
+        ax.plot([0, 1], [pre_value, post_value], color="0.60", lw=1.0, zorder=1)
+        ax.scatter(0, pre_value, color=PRE_COLOR, s=25, zorder=2)
+        ax.scatter(1, post_value, color=POST_COLOR, s=25, zorder=2)
+    ax.scatter(
+        [0, 1],
+        [pre["mean"], post["mean"]],
+        marker="D",
+        color="black",
+        s=35,
+        zorder=3,
+        label="Mean",
+    )
+    ax.axhline(0.0, color="black", lw=0.8)
+    ax.set_xticks([0, 1], ["Before\n$k=0$", "After\n$k=500$"])
+    ax.set_ylabel(r"Anchor gap $\Delta^A_{256}$ (BPC)")
+    _clean_axis(ax, "y")
+
+
+def _draw_post_effect(ax: plt.Axes, summary: Dict[str, Any]) -> None:
+    stats = summary["stats_post_500"]
+    ax.axvspan(
+        -THRESHOLD_MIN_PRE_GAP,
+        THRESHOLD_MIN_PRE_GAP,
+        color="0.65",
+        alpha=0.18,
+    )
+    raw = np.asarray(stats["raw_diffs"])
+    y = np.linspace(-0.08, 0.08, len(raw))
+    ax.scatter(raw, y, color=POST_COLOR, alpha=0.70, s=24, zorder=2)
+    low, high = stats["ci_95"]
+    ax.errorbar(
+        stats["mean"],
+        0,
+        xerr=[[stats["mean"] - low], [high - stats["mean"]]],
+        fmt="D",
+        color="black",
+        ecolor=POST_COLOR,
+        elinewidth=2.0,
+        capsize=4,
+        markersize=5,
+        zorder=3,
+    )
+    ax.axvline(0.0, color="black", lw=0.8)
+    ax.set_xlim(low - 0.035, high + 0.035)
+    ax.set_ylim(-0.18, 0.22)
+    ax.set_yticks([])
+    ax.set_xlabel("Post-recovery effect (BPC)")
+    ax.text(
+        stats["mean"],
+        0.15,
+        rf"$\bar{{\Delta}}={stats['mean']:+.3f}$",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    _clean_axis(ax, "x")
+
+
+def _plot_main_primary(
     tables: StudyTables,
+    summary: Dict[str, Any],
     active_seeds: List[int],
     recovery_steps: List[int],
     recovery_k: List[int],
     output_dir: str,
 ) -> None:
-    fig, axes = plt.subplots(2, 2, figsize=(12.5, 8.5), sharex=True)
-    short_horizon_values = []
+    """Main Figure 1: dynamics, paired endpoints, and residual uncertainty."""
+    fig = plt.figure(figsize=(7.2, 5.4))
+    grid = fig.add_gridspec(2, 2, height_ratios=[1.25, 1], hspace=0.55, wspace=0.42)
+    ax_dynamics = fig.add_subplot(grid[0, :])
+    ax_pairs = fig.add_subplot(grid[1, 0])
+    ax_effect = fig.add_subplot(grid[1, 1])
 
-    for idx, horizon in enumerate(CONTEXT_LENGTHS):
-        ax = axes[idx // 2, idx % 2]
-        trajectories = []
-        for seed in active_seeds:
-            values = _process_gap(tables, seed, recovery_steps, horizon)
-            trajectories.append(values)
-            if horizon != 256:
-                short_horizon_values.extend(values.tolist())
-            ax.plot(
-                recovery_k,
-                values,
-                color=HORIZON_COLORS[horizon],
-                alpha=RAW_ALPHA,
-                lw=1,
-                marker="o",
-                markersize=3,
-            )
+    values = _trajectories(tables, active_seeds, recovery_steps, 256)
+    mean_values = _draw_trajectory(
+        ax_dynamics,
+        recovery_k,
+        values,
+        HORIZON_COLORS[256],
+    )
+    ax_dynamics.set_xlabel("Recovery step $k$")
+    ax_dynamics.set_ylabel(r"Process gap $\Delta^P_{256}(k)$ (BPC)")
+    _panel_label(ax_dynamics, "A")
 
-        mean_values = np.mean(trajectories, axis=0)
-        ax.plot(
-            recovery_k,
-            mean_values,
-            color=HORIZON_COLORS[horizon],
-            lw=2.8,
-            marker="o",
-            markersize=6,
-            label="3-seed mean",
+    for k in (0, 10, 50):
+        idx = recovery_k.index(k)
+        ax_dynamics.annotate(
+            f"{mean_values[idx]:+.2f}",
+            (k, mean_values[idx]),
+            xytext=(4, 5),
+            textcoords="offset points",
+            fontsize=7.5,
+            color=HORIZON_COLORS[256],
         )
-        ax.axhline(0.0, color="black", lw=1)
-        for marker in (0, 250, 500):
-            ax.axvline(marker, color="0.72", lw=0.9, ls=":", zorder=0)
-        ax.set_title(f"Evaluation horizon T={horizon}")
-        ax.set_ylabel("Descending − ascending BPC")
-        ax.grid(alpha=0.2)
-        if idx >= 2:
-            ax.set_xlabel("Recovery step k")
-        if idx == 0:
-            ax.legend(frameon=False, loc="lower right")
 
-    short_min = min(short_horizon_values) - 0.02
-    short_max = max(short_horizon_values) + 0.02
-    for ax in (axes[0, 0], axes[0, 1], axes[1, 0]):
-        ax.set_ylim(short_min, short_max)
-    axes[1, 1].text(
-        0.98,
-        0.96,
-        "Independent y-scale",
-        transform=axes[1, 1].transAxes,
-        ha="right",
-        va="top",
-        fontsize=9,
-        color="0.35",
+    inset = ax_dynamics.inset_axes([0.52, 0.29, 0.43, 0.58])
+    early = [idx for idx, k in enumerate(recovery_k) if k <= 50]
+    _draw_trajectory(
+        inset,
+        [recovery_k[idx] for idx in early],
+        values[:, early],
+        HORIZON_COLORS[256],
     )
-    fig.suptitle(
-        "Figure 1 | Recovery dynamics across evaluation horizons\n"
-        "Markers are measured checkpoints; faint lines are individual seeds",
-        fontsize=14,
-    )
-    fig.tight_layout()
-    _save(fig, output_dir, "figure_01_recovery_dynamics.png")
+    inset.set_xlim(-2, 52)
+    inset.set_title(r"Early recovery ($k\leq50$)", fontsize=8, pad=3)
+    inset.tick_params(labelsize=7)
+    inset.set_xlabel("$k$", fontsize=7.5)
+
+    _draw_paired_endpoints(ax_pairs, summary)
+    _panel_label(ax_pairs, "B")
+    _draw_post_effect(ax_effect, summary)
+    _panel_label(ax_effect, "C")
+    _save(fig, output_dir, "main_figure_1_primary_recovery")
 
 
-def _plot_primary_endpoint(summary: Dict[str, Any], output_dir: str) -> None:
-    pre = summary["stats_pre"]
-    post = summary["stats_post_500"]
-    recovered = summary["stats_abs_recovery_500"]
-
-    fig, (ax_pairs, ax_post, ax_recovery) = plt.subplots(
-        1,
-        3,
-        figsize=(14.5, 5.7),
-        gridspec_kw={"width_ratios": [1.25, 0.85, 0.85]},
-    )
-
-    ax_pairs.axhspan(
-        -THRESHOLD_MIN_PRE_GAP,
-        THRESHOLD_MIN_PRE_GAP,
-        color="0.6",
-        alpha=0.16,
-        label=f"Practical-removal band (±{THRESHOLD_MIN_PRE_GAP:.2f})",
-    )
-    for pre_value, post_value in zip(pre["raw_diffs"], post["raw_diffs"]):
-        ax_pairs.plot([0, 1], [pre_value, post_value], color="0.65", lw=1.2, zorder=1)
-        ax_pairs.scatter(0, pre_value, color=PRE_COLOR, s=54, zorder=2)
-        ax_pairs.scatter(1, post_value, color=POST_COLOR, s=54, zorder=2)
-    ax_pairs.scatter([0, 1], [pre["mean"], post["mean"]], marker="D", color="black", s=68, zorder=3, label="3-seed mean")
-    ax_pairs.axhline(0.0, color="black", lw=1)
-    ax_pairs.set_xticks([0, 1], ["Before recovery\n(k=0)", "After recovery\n(k=500)"])
-    ax_pairs.set_ylabel(r"Anchor gap $\Delta^A$ at T=256 (BPC)")
-    ax_pairs.set_title("A  Paired anchor endpoints only\n(lines show pairing, not intermediate dynamics)", loc="left")
-    ax_pairs.grid(axis="y", alpha=0.22)
-    ax_pairs.spines[["top", "right"]].set_visible(False)
-    ax_pairs.legend(frameon=False, loc="upper right")
-
-    def draw_effect_panel(
-        ax: plt.Axes,
-        stats: Dict[str, Any],
-        color: str,
-        title: str,
-        xlim: tuple[float, float],
-        show_equivalence_band: bool = False,
-    ) -> None:
-        if show_equivalence_band:
-            ax.axvspan(-THRESHOLD_MIN_PRE_GAP, THRESHOLD_MIN_PRE_GAP, color="0.6", alpha=0.16)
-        raw = np.asarray(stats["raw_diffs"])
-        jitter = np.linspace(-0.07, 0.07, len(raw))
-        ax.scatter(raw, jitter, color=color, alpha=0.62, s=38, zorder=2)
-        low, high = stats["ci_95"]
-        ax.errorbar(
-            stats["mean"],
-            0,
-            xerr=[[stats["mean"] - low], [high - stats["mean"]]],
-            fmt="D",
-            color="black",
-            ecolor=color,
-            elinewidth=2.5,
-            capsize=5,
-            markersize=7,
-            zorder=3,
-        )
-        ax.text(stats["mean"], 0.14, f"mean {stats['mean']:+.3f}", ha="center", va="bottom", fontsize=9)
-        ax.set_xlim(*xlim)
-        ax.set_ylim(-0.18, 0.22)
-        ax.set_yticks([])
-        ax.set_xlabel("Effect size (BPC)\nmean with 95% t interval")
-        ax.set_title(title, loc="left")
-        _style_effect_axis(ax)
-
-    post_low, post_high = post["ci_95"]
-    recovered_low, recovered_high = recovered["ci_95"]
-    draw_effect_panel(
-        ax_post,
-        post,
-        POST_COLOR,
-        "B  Post-recovery residual",
-        (post_low - 0.035, post_high + 0.035),
-        show_equivalence_band=True,
-    )
-    draw_effect_panel(
-        ax_recovery,
-        recovered,
-        "#009E73",
-        "C  Pre-to-post reduction",
-        (recovered_low - 0.10, recovered_high + 0.10),
-    )
-    fig.suptitle("Figure 2 | Primary endpoint: the large deficit reversed, but the residual is unresolved", fontsize=14)
-    fig.tight_layout()
-    _save(fig, output_dir, "figure_02_primary_endpoint_estimation.png")
-
-
-def _plot_horizon_effects(summary: Dict[str, Any], output_dir: str) -> None:
+def _plot_main_horizon_effects(summary: Dict[str, Any], output_dir: str) -> None:
+    """Main Figure 2: horizon-specific anchor effects before and after recovery."""
     horizon_stats = summary["horizon_endpoint_stats"]
     horizons = list(CONTEXT_LENGTHS)
-    fig, (ax_pre, ax_post) = plt.subplots(1, 2, figsize=(12.5, 5.8), sharey=True)
+    fig, (ax_pre, ax_post) = plt.subplots(1, 2, figsize=(7.2, 3.25), sharey=True)
 
-    for ax, endpoint, title in [
-        (ax_pre, "pre", "A  Before recovery (k=0)"),
-        (ax_post, "post_500", "B  After recovery (k=500)"),
-    ]:
+    for ax, endpoint in [(ax_pre, "pre"), (ax_post, "post_500")]:
         for y, horizon in enumerate(horizons):
-            stats = horizon_stats[str(horizon)] if str(horizon) in horizon_stats else horizon_stats[horizon]
-            values = stats[endpoint]
-            raw = np.asarray(values["raw_diffs"])
+            stats = horizon_stats.get(str(horizon), horizon_stats.get(horizon))[endpoint]
+            raw = np.asarray(stats["raw_diffs"])
             jitter = np.linspace(-0.07, 0.07, len(raw))
-            ax.scatter(raw, y + jitter, color=HORIZON_COLORS[horizon], alpha=0.55, s=30, zorder=2)
-            low, high = values["ci_95"]
+            ax.scatter(raw, y + jitter, color=HORIZON_COLORS[horizon], alpha=0.65, s=22, zorder=2)
+            low, high = stats["ci_95"]
             ax.errorbar(
-                values["mean"],
+                stats["mean"],
                 y,
-                xerr=[[values["mean"] - low], [high - values["mean"]]],
+                xerr=[[stats["mean"] - low], [high - stats["mean"]]],
                 fmt="D",
                 color="black",
                 ecolor=HORIZON_COLORS[horizon],
-                elinewidth=2.4,
-                capsize=5,
-                markersize=6,
+                elinewidth=1.8,
+                capsize=3.5,
+                markersize=4.5,
                 zorder=3,
             )
-        ax.set_yticks(range(len(horizons)), [f"T={h}" for h in horizons])
-        ax.set_xlabel("Descending − ascending anchor BPC")
-        ax.set_title(title, loc="left")
-        _style_effect_axis(ax)
+        ax.axvline(0.0, color="black", lw=0.8)
+        ax.set_yticks(range(len(horizons)), [f"$T={h}$" for h in horizons])
+        ax.set_xlabel("Descending $-$ ascending anchor BPC")
+        _clean_axis(ax, "x")
 
-    ax_post.axvspan(-THRESHOLD_MIN_PRE_GAP, THRESHOLD_MIN_PRE_GAP, color="0.6", alpha=0.16)
-    fig.suptitle(
-        "Figure 3 | Horizon-specific paired effects\n"
-        "Dots are seeds; diamonds and bars are means with 95% t intervals",
-        fontsize=14,
+    ax_post.axvspan(
+        -THRESHOLD_MIN_PRE_GAP,
+        THRESHOLD_MIN_PRE_GAP,
+        color="0.65",
+        alpha=0.18,
     )
-    fig.tight_layout()
-    _save(fig, output_dir, "figure_03_horizon_effect_forest.png")
+    ax_pre.set_title("Before recovery ($k=0$)", loc="left", fontsize=9, pad=7)
+    ax_post.set_title("After recovery ($k=500$)", loc="left", fontsize=9, pad=7)
+    _panel_label(ax_pre, "A")
+    _panel_label(ax_post, "B")
+    fig.subplots_adjust(left=0.10, right=0.99, bottom=0.20, top=0.93, wspace=0.12)
+    _save(fig, output_dir, "main_figure_2_horizon_specificity")
 
 
 def _alignment_values(
     tables: StudyTables,
     seed: int,
-    recovery_steps: List[int],
+    recovery_steps: Sequence[int],
 ) -> np.ndarray:
     delta_256 = _process_gap(tables, seed, recovery_steps, 256)
     delta_32 = _process_gap(tables, seed, recovery_steps, 32)
     return delta_256 - delta_32
 
 
-def _plot_context_alignment(
+def _plot_main_alignment(
     tables: StudyTables,
     active_seeds: List[int],
     recovery_steps: List[int],
     recovery_k: List[int],
     output_dir: str,
 ) -> None:
-    trajectories = np.asarray([
-        _alignment_values(tables, seed, recovery_steps)
-        for seed in active_seeds
-    ])
-    mean_values = np.mean(trajectories, axis=0)
-
-    fig, (ax_full, ax_early) = plt.subplots(1, 2, figsize=(12.5, 5.3), gridspec_kw={"width_ratios": [1.4, 1]})
+    """Main Figure 3: full and early context-alignment diagnostic."""
+    values = np.asarray(
+        [_alignment_values(tables, seed, recovery_steps) for seed in active_seeds]
+    )
+    fig, (ax_full, ax_early) = plt.subplots(
+        1,
+        2,
+        figsize=(7.2, 3.1),
+        gridspec_kw={"width_ratios": [1.35, 1]},
+    )
     for ax in (ax_full, ax_early):
-        for values in trajectories:
-            ax.plot(recovery_k, values, color="#56B4E9", alpha=0.32, lw=1.2, marker="o", markersize=3)
-        ax.plot(recovery_k, mean_values, color="#005F73", lw=3, marker="o", markersize=6, label="3-seed mean")
-        ax.axhline(0.0, color="black", lw=1)
-        ax.grid(alpha=0.22)
-        ax.set_xlabel("Recovery step k")
-        ax.spines[["top", "right"]].set_visible(False)
-    ax_full.set_ylabel(r"$A^P(k)=\Delta_{256}^{P}(k)-\Delta_{32}^{P}(k)$ (BPC)")
-    ax_full.set_title("A  Full recovery window", loc="left")
-    ax_full.legend(frameon=False)
+        _draw_trajectory(ax, recovery_k, values, ALIGNMENT_COLOR)
+        ax.set_xlabel("Recovery step $k$")
+    ax_full.set_ylabel(r"Horizon alignment $A^P(k)$ (BPC)")
     ax_early.set_xlim(-2, 52)
-    ax_early.set_title("B  Early-recovery zoom", loc="left")
-    fig.suptitle("Figure 4 | Evaluation-horizon dependence collapses rapidly during recovery", fontsize=14)
-    fig.tight_layout()
-    _save(fig, output_dir, "figure_04_context_alignment.png")
+    ax_full.set_title("Full recovery window", loc="left", fontsize=9, pad=7)
+    ax_early.set_title("First 50 steps", loc="left", fontsize=9, pad=7)
+    _panel_label(ax_full, "A")
+    _panel_label(ax_early, "B")
+    fig.subplots_adjust(left=0.10, right=0.99, bottom=0.20, top=0.93, wspace=0.32)
+    _save(fig, output_dir, "main_figure_3_context_alignment")
+
+
+def _plot_appendix_all_horizons(
+    tables: StudyTables,
+    active_seeds: List[int],
+    recovery_steps: List[int],
+    recovery_k: List[int],
+    output_dir: str,
+) -> None:
+    """Appendix Figure A1: complete process trajectories at all horizons."""
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.4), sharex=True)
+    short_values: List[float] = []
+
+    for idx, horizon in enumerate(CONTEXT_LENGTHS):
+        ax = axes[idx // 2, idx % 2]
+        values = _trajectories(tables, active_seeds, recovery_steps, horizon)
+        if horizon != 256:
+            short_values.extend(values.ravel().tolist())
+        _draw_trajectory(ax, recovery_k, values, HORIZON_COLORS[horizon], show_legend=idx == 0)
+        ax.text(0.04, 0.92, f"$T={horizon}$", transform=ax.transAxes, va="top")
+        if idx // 2 == 1:
+            ax.set_xlabel("Recovery step $k$")
+        if idx % 2 == 0:
+            ax.set_ylabel("Descending $-$ ascending BPC")
+        _panel_label(ax, chr(ord("A") + idx))
+        if idx == 0:
+            ax.legend(frameon=False, loc="lower right")
+
+    lower = min(short_values) - 0.02
+    upper = max(short_values) + 0.02
+    for ax in (axes[0, 0], axes[0, 1], axes[1, 0]):
+        ax.set_ylim(lower, upper)
+    axes[1, 1].text(
+        0.96,
+        0.80,
+        "Independent y-scale",
+        transform=axes[1, 1].transAxes,
+        ha="right",
+        color="0.35",
+        fontsize=7.5,
+    )
+    fig.subplots_adjust(left=0.10, right=0.99, bottom=0.11, top=0.96, hspace=0.27, wspace=0.25)
+    _save(fig, output_dir, "appendix_figure_A1_all_horizon_trajectories")
+
+
+def _plot_appendix_nonmonotonic(
+    tables: StudyTables,
+    active_seeds: List[int],
+    recovery_steps: List[int],
+    recovery_k: List[int],
+    output_dir: str,
+) -> None:
+    """Appendix Figure A2: exploratory contrasts for the single nonmonotonic arm."""
+    fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.4), sharex=True)
+    contrasts = [
+        ("Nonmonotonic $-$ ascending", "nonmonotonic", "ascending", NONMONOTONIC_COLORS[0]),
+        ("Descending $-$ nonmonotonic", "descending", "nonmonotonic", NONMONOTONIC_COLORS[1]),
+    ]
+
+    for idx, horizon in enumerate(CONTEXT_LENGTHS):
+        ax = axes[idx // 2, idx % 2]
+        for label, first_arm, second_arm, color in contrasts:
+            values = np.asarray(
+                [
+                    [
+                        tables.process_bpc(seed, first_arm, step, horizon)
+                        - tables.process_bpc(seed, second_arm, step, horizon)
+                        for step in recovery_steps
+                    ]
+                    for seed in active_seeds
+                ]
+            )
+            for row in values:
+                ax.plot(
+                    recovery_k,
+                    row,
+                    color=color,
+                    alpha=0.20,
+                    lw=0.8,
+                    marker="o",
+                    markersize=2,
+                )
+            ax.plot(
+                recovery_k,
+                np.mean(values, axis=0),
+                color=color,
+                lw=2.0,
+                marker="o",
+                markersize=3.8,
+                label=label,
+            )
+        ax.axhline(0.0, color="black", lw=0.8)
+        ax.text(0.04, 0.92, f"$T={horizon}$", transform=ax.transAxes, va="top")
+        if idx // 2 == 1:
+            ax.set_xlabel("Recovery step $k$")
+        if idx % 2 == 0:
+            ax.set_ylabel("Process contrast (BPC)")
+        _panel_label(ax, chr(ord("A") + idx))
+        _clean_axis(ax)
+        if idx == 0:
+            ax.legend(frameon=False, loc="best", fontsize=7)
+
+    fig.subplots_adjust(left=0.10, right=0.99, bottom=0.11, top=0.96, hspace=0.27, wspace=0.25)
+    _save(fig, output_dir, "appendix_figure_A2_nonmonotonic_exploratory")
 
 
 def plot_paper_figures(
@@ -308,12 +445,39 @@ def plot_paper_figures(
     checkpoints: List[int],
     figures_dir: str,
 ) -> None:
-    """Render the post-results paper figure set without changing formal results."""
+    """Render the post-results manuscript figure set."""
+    _set_publication_style()
     output_dir = os.path.join(figures_dir, "paper")
     os.makedirs(output_dir, exist_ok=True)
     recovery_steps, recovery_k = _recovery_axis(checkpoints, summary["base_pre_step"])
 
-    _plot_recovery_dynamics(tables, active_seeds, recovery_steps, recovery_k, output_dir)
-    _plot_primary_endpoint(summary, output_dir)
-    _plot_horizon_effects(summary, output_dir)
-    _plot_context_alignment(tables, active_seeds, recovery_steps, recovery_k, output_dir)
+    _plot_main_primary(
+        tables,
+        summary,
+        active_seeds,
+        recovery_steps,
+        recovery_k,
+        output_dir,
+    )
+    _plot_main_horizon_effects(summary, output_dir)
+    _plot_main_alignment(
+        tables,
+        active_seeds,
+        recovery_steps,
+        recovery_k,
+        output_dir,
+    )
+    _plot_appendix_all_horizons(
+        tables,
+        active_seeds,
+        recovery_steps,
+        recovery_k,
+        output_dir,
+    )
+    _plot_appendix_nonmonotonic(
+        tables,
+        active_seeds,
+        recovery_steps,
+        recovery_k,
+        output_dir,
+    )
