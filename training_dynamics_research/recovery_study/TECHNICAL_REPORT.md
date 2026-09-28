@@ -149,7 +149,8 @@ The experiment rejects the simple claim that descending context order leaves a l
 | Frozen preregistration | `f1bf7b7` |
 | Formal training code and run artifacts | `30a126cb7fbee5b5d730aeccc6efa33a18cdf4f8` |
 | Corrected analysis code | `82a4f0d5b24d27a6fd66bf3fe1878d6839af0ebd` |
-| Figure-generation code | `82a4f0d5b24d27a6fd66bf3fe1878d6839af0ebd` |
+| Registered figure-generation code | `82a4f0d5b24d27a6fd66bf3fe1878d6839af0ebd` |
+| Post-results paper-figure code | `8e1d7737dc446eebdfeb0302984a05fa4c5a4a6a` |
 
 The corrected analysis and figures were generated without rerunning the models:
 
@@ -167,3 +168,23 @@ Primary artifacts:
 - `results/recovery_study/figures/appendix_A3_paired_seed_endpoints.png`
 - `results/recovery_study/figures/appendix_A4_context_alignment.png`
 - `results/recovery_study/figures/appendix_A5_nonmonotonic_exploratory.png`
+
+## 11. Post-results paper visualization layer
+
+The registered figures above remain the audit layer. A separate presentation layer was created after inspecting the results; it changes no data, estimand, threshold, decision rule, or conclusion. Its purpose is to make the temporal and statistical evidence legible without implying observations that were not collected.
+
+| Paper figure | Question answered | Visual contract |
+|---|---|---|
+| `figure_01_recovery_dynamics.png` | How did the descending-minus-ascending gap evolve at each evaluation horizon? | Every measured recovery checkpoint is marked; faint paths are seeds and the heavy path is their mean. `T=256` uses an explicitly labelled independent y-scale because its initial gap is an order of magnitude larger. |
+| `figure_02_primary_endpoint_estimation.png` | What happened to the registered `T=256` anchor endpoint? | The left panel contains endpoints only and states that connecting lines encode seed pairing, not an unobserved trajectory. Separate effect-size panels give the post-recovery residual and pre-to-post reduction their own scales, with raw seeds and 95% t intervals. |
+| `figure_03_horizon_effect_forest.png` | Was the endpoint effect specific to `T=256`? | Raw paired seed effects, means, and 95% t intervals are shown before and after recovery; the post panel includes the registered `±0.02 BPC` practical-removal band. |
+| `figure_04_context_alignment.png` | How quickly did evaluation-horizon dependence collapse? | All measured checkpoints are visible in a full-window panel and an early-recovery zoom; no smoothing or interpolation is used. |
+
+These choices follow three useful conventions from prior work: plot dynamics at the time scale where the transition occurs, as in sequence-length warmup and grokking studies; show raw runs rather than only an aggregate curve; and pair point estimates with uncertainty rather than treating a small number of seeds as a significance contest. Relevant examples are [Li et al., *Sequence Length Warmup for Large Language Model Pretraining*](https://arxiv.org/abs/2108.06084), [Power et al., *Grokking*](https://arxiv.org/abs/2201.02177), [Agarwal et al., *Deep Reinforcement Learning at the Edge of the Statistical Precipice*](https://proceedings.neurips.cc/paper_files/paper/2021/hash/f514cec81cb148559cf475e7426eed5e-Abstract.html), and [Ho et al., *Moving beyond P values: data analysis with estimation graphics*](https://www.nature.com/articles/s41592-019-0470-3).
+
+Paper-figure artifacts:
+
+- `results/recovery_study/figures/paper/figure_01_recovery_dynamics.png`
+- `results/recovery_study/figures/paper/figure_02_primary_endpoint_estimation.png`
+- `results/recovery_study/figures/paper/figure_03_horizon_effect_forest.png`
+- `results/recovery_study/figures/paper/figure_04_context_alignment.png`
