@@ -343,7 +343,10 @@ The Anti-Curriculum failure is asymmetric with the Curriculum non-result. Curric
 
 ## Appendix: Per-Seed Raw Data
 
-Full per-step training logs: `results/ce3_paired/seed_N_results.json` (N ∈ {42, 43, 44, 45, 46})  
-Statistical summary: `results/ce3_paired/ce3_summary.json`  
-Original (retracted) report: `technical_report_v1_original.md`  
+Full per-step training logs: `results/ce3_paired/seed_N_results.json` (N ∈ {42, 43, 44, 45, 46})
+
+Statistical summary: `results/ce3_paired/ce3_summary.json`
+
+Original (retracted) report: `../iteration_1_exploratory_pilot/technical_report_v1_retracted.md`
+
 Corrected corpus probe: `corpus_probe_v2.py`, output `results/ce1_corpus_probe_corrected.json`

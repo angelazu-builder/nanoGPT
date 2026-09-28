@@ -1,130 +1,73 @@
-# ⚡ nanoGPT — 多阶段语言模型预训练与训练动力学研究
+# Angela's nanoGPT
 
 [English](README.md) | [中文](README_CN.md)
 
-基于 Tiny Shakespeare 语料库构建的 Decoder-Only Causal Transformer 架构、Subword BPE 分词优化与训练动力学（Training Dynamics）深层研究（支持 PyTorch / Apple Silicon MPS）。
+这是一个面向 Apple Silicon、可阅读且可审计的小型 GPT 实现，同时也是一项关于 context-length order 如何影响训练动力学的三轮研究。
 
----
+## 两个相连的任务
 
-## 🌿 Subtask 与 Git 分支导航矩阵 (Branch Navigation Matrix)
+1. **搭建并训练 nanoGPT。** 根目录中的模块实现模型、字符/BPE 数据管线、训练、评估和文本生成。
+2. **研究 training dynamics。** 把这个小模型当作实验仪器，研究不同 context-length curriculum 的训练过程。
 
-本仓库围绕 4 个核心里程碑子任务（Subtask）建立，各子任务均在专属 Git 分支中独立维护，并在各自的 `README.md` 中展示真实可视化图表与复现代码：
+第二个任务是当前仓库的科学主线。建议从 [训练动力学研究导航](training_dynamics_research/README.md) 开始阅读。
 
-| 里程碑 / Subtask | 特性分支 (Feature Branch) | 核心技术要点 | 关键指标 / 结果 | 可视化成果图表 |
-| :--- | :--- | :--- | :--- | :--- |
-| **Subtask 1: 字符级 Baseline** | [`feat/phase-1-char-baseline`](https://github.com/angelazu-builder/nanoGPT/tree/feat/phase-1-char-baseline) | 字符分词 ($V=65$), 因果自注意力, GELU 前馈网络 | 0.8M 参数, 初始收敛 | 字符级 Loss 下降曲线 |
-| **Subtask 2: 上下文与 Scaling** | [`feat/phase-2-char-scaling`](https://github.com/angelazu-builder/nanoGPT/tree/feat/phase-2-char-scaling) | $T=64 \to 256$ 扩展, 4.8M 参数 Scaling | **1.4668 验证集 Loss** (达成 Karpathy 参考值) | `results/day2_char_scaling_benchmark.png` |
-| **Subtask 3: 子词 BPE 分词** | [`feat/phase-3-subword-bpe`](https://github.com/angelazu-builder/nanoGPT/tree/feat/phase-3-subword-bpe) | OpenAI `tiktoken` ($V=50257$), MPS 内存分配优化 | **0.0% 非词率**, 2.12 BPC | `results/bpe_vs_char_comparison.png` |
-| **Subtask 4: 训练动力学研究** | [`feat/phase-4-training-dynamics`](https://github.com/angelazu-builder/nanoGPT/tree/feat/phase-4-training-dynamics) | Context Curriculum ($32 \to 256$), 梯度噪声探针, RoPE | **表示秩 140.79** (抑制秩坍缩), **注意力熵 0.2975** | `results/theory_computation_experiment_dashboard.png` |
+## 三轮研究进程
 
----
+| 轮次 | 问题 | 方法升级 | 当前允许的结论 |
+|---|---|---|---|
+| 1. Exploratory pilot | context-length order 是否重要？ | 单 seed schedules 与若干诊断指标 | 发现了巨大的 descending deficit，但测量问题使它只能作为线索。 |
+| 2. Paired pilot | 修正测量后，这个 deficit 是否仍存在？ | 5 个 paired seeds、共享初始化与 data manifests、固定 held-out targets | descending terminal deficit 得到复现；curriculum 对 shuffled/fixed-long 没有可检测优势，但 order 与 terminal context 仍混在一起。 |
+| 3. Recovery study | 在共同 long-context 条件下，deficit 是否持久？ | 匹配 block permutation、共同 `T=256` recovery、多 horizon process/anchor panels、预注册规则 | **Large deficit reversed; residual sign reversal unresolved.** |
 
-## 📊 里程碑可视化成果
+这个过程本身是研究结果的一部分。仓库当前并不声称 curriculum 普遍更好、ordering 永远不重要，或 recency mechanism 已被唯一识别。
 
-### 1. 字符级上下文 Scaling 拓展对比 ($T=64 \to 256$)
-![Day 2 Character Scaling Benchmark](results/day2_char_scaling_benchmark.png)
+## 最终交付物
 
-### 2. 子词 BPE vs 字符级归一化 BPC 比较
-![Subword BPC Comparison](results/bpe_vs_char_comparison.png)
+- [最终 Technical Report](training_dynamics_research/recovery_study/TECHNICAL_REPORT_final.md)：保留研究过程、错误、预注册、正式结果和仍未知的问题。
+- [最终论文源文件](training_dynamics_research/paper_icml2026/paper_final.tex)：署名的 ICML 风格 preprint。
+- [最终论文 PDF](output/pdf/context_order_recovery_icml2026_final.pdf)。
+- [冻结的 Preregistration](training_dynamics_research/recovery_study/PREREGISTRATION.md)。
 
-### 3. 理论 - 计算 - 实验 训练动力学 8-Panel 看板
-![Theory - Computation - Experiment Dashboard](results/theory_computation_experiment_dashboard.png)
+只有最终交付物使用 `_final` 后缀。运行代码和机器生成结果保持稳定文件名，避免破坏 imports 与复现命令。
 
----
-
-## 📖 文本生成示例
-
-### 🔵 1. 字符级 Baseline (`exp06` | Step 2100 | Val Loss: 1.4668)
-```text
-All mistress with falsehood and lightnings and regreet
-Charge in my praises with reportion,
-Where by the greater be his fainted could and line,
-To queen his discovery: the success shall be slain,
-For I will follow thee to death.
-```
-
-### 🟠 2. 子词 BPE 分词 (`exp07` | Step 900 | 0.0% 拼写错误率)
-```text
-ISABELLA:
-I pray you, go, sir; you are the first.
-
-ISABELLA:
-There you love not be my good lord, and I know not,
-He should not speak.
-
-DUKE VINCENTIO:
-What's enough.
-```
-
----
-
-## 🏛️ 仓库目录架构
+## 目录导航
 
 ```text
-Angela's nanoGPT/
-├── README.md                           # 主 Landing Page 与分支导航
-├── README_CN.md                        # 中文 Landing Page
-├── config.py                           # 配置文件与动态配置加载器
-├── dataset.py                          # 字符级数据集模块
-├── dataset_bpe.py                      # 子词 BPE 数据集模块
-├── model.py                            # MiniTransformerLM 架构 (含 RoPE 与 FlashAttention)
-├── train.py                            # 训练引擎 (含 Warmup 与 Cosine 衰减)
-├── eval.py                             # 评估与 Perplexity 评测引擎
-├── chat.py                             # 交互式文本生成 CLI
-├── compare_experiments.py              # 实验指标对比聚合器
-│
-├── research/                           # Subtask 4: 训练动力学探针与研究报告
-│   ├── corpus_probe.py                 # 探针 A: 条件熵与互信息分析
-│   ├── gradient_probe.py               # 探针 B: 初始化梯度噪声标度探针
-│   ├── experiment_curriculum.py        # 4 组受控 Curriculum 训练运行器
-│   ├── analyze_curriculum.py           # Curriculum 结果分析器
-│   ├── generate_all_plots.py           # 8-Panel Dashboard 渲染器
-│   ├── plan_proposal.md                # 评审级研究提案
-│   └── technical_report.md             # 完整 Technical Report
-│
-├── results/                            # 成果图表与 JSON 指标
-│   ├── day2_char_scaling_benchmark.png
-│   ├── bpe_vs_char_comparison.png
-│   ├── theory_computation_experiment_dashboard.png
-│   ├── all_results_dashboard.png
-│   ├── curriculum_dynamics_comparison.png
-│   └── curriculum_experiment_results.json
-│
-├── theory/                             # 理论最小集文档
-│   ├── nanoGPT_Theoretical_Minimum_Handout.md
-│   └── nanoGPT_Theoretical_Minimum_Handout.docx
-│
-└── scripts/                            # 辅助脚本
-    ├── generate_deliverable_image.py
-    └── test_sampling.py
+.
+├── model.py, train.py, dataset*.py, eval.py, chat.py
+│   └── nanoGPT 核心实现
+├── Day 1/, Day 2/, Day 3/
+│   └── 早期模型搭建里程碑
+├── training_dynamics_research/
+│   ├── README.md                    # 三轮研究进程与阅读顺序
+│   ├── history/                     # 第一、二轮历史材料
+│   ├── recovery_study/              # 第三轮代码、预注册、最终报告
+│   ├── paper_icml2026/              # 最终论文源文件与 ICML 样式
+│   └── research_methodology/        # 可复用的实验与代码审查方法
+├── results/
+│   ├── ce3_paired/                  # 第二轮结果
+│   └── recovery_study/              # 第三轮正式结果与图片
+└── output/pdf/
+    └── context_order_recovery_icml2026_final.pdf
 ```
 
----
+## 快速开始
 
-## 🚀 快速开始与复现
-
-### 1. 环境安装
 ```bash
-git clone https://github.com/angelazu-builder/nanoGPT.git
-cd nanoGPT
-pip install torch tiktoken matplotlib
-```
+pip install torch tiktoken matplotlib scipy numpy
 
-### 2. 交互式文本生成
-```bash
+python train.py --tokenizer char --block_size 256
 python chat.py --temperature 0.8 --top_k 40
 ```
 
-### 3. 运行预训练与研究实验
+## 复现最终 Recovery Study
+
 ```bash
-# 字符级预训练
-python train.py --tokenizer char --block_size 256
-
-# 子词 BPE 预训练
-python train.py --tokenizer bpe --batch_size 32 --block_size 128
-
-# 运行训练动力学探针与 Curriculum 研究
-python research/gradient_probe.py
-python research/experiment_curriculum.py
-python research/generate_all_plots.py
+python3 -m unittest training_dynamics_research.recovery_study.test_study
+python3 -m training_dynamics_research.recovery_study.runner
+python3 -m training_dynamics_research.recovery_study.analyze
 ```
+
+以上命令均应从仓库根目录运行。
+
+正式实验使用 4.8M 参数的 character-level Transformer、Tiny Shakespeare、每次 update 4,096 个 target tokens，以及 24 GB unified memory 的 Apple M3。

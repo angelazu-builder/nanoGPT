@@ -2,7 +2,7 @@
 
 > **Title**: Does Context Length Order Matter? Deconstructing Optimization Dynamics, Gradient Variance, and Long-Context Retention in Autoregressive Transformer Curriculum  
 > **Status**: Approved Scientific Proposal  
-> **Workspace Path**: `training_dynamics_research/plan_proposal.md`
+> **Archived Path**: `training_dynamics_research/history/iteration_1_exploratory_pilot/plan_proposal_original.md`
 
 ---
 
@@ -116,4 +116,4 @@ $$\text{Context Length } T \times \text{Batch Size } B = 4,096 \text{ tokens/upd
 
 ---
 *归档时间*: 2026-09-19  
-*文件路径*: `training_dynamics_research/plan_proposal.md`
+*归档路径*: `training_dynamics_research/history/iteration_1_exploratory_pilot/plan_proposal_original.md`

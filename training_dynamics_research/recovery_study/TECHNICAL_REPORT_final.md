@@ -7,6 +7,23 @@
 > **Model:** 4.8M-parameter character-level Transformer on Tiny Shakespeare  
 > **Primary metric:** Paired descending-minus-ascending validation BPC at evaluation horizon `T=256`
 
+## How I arrived at this study
+
+I see this repository as two connected tasks: first, training a small nanoGPT-style model on an Apple M3; second, using that model to study training dynamics. The research developed through three iterations.
+
+In the first iteration, I asked whether the sequence of context lengths used during training would affect final performance. The descending schedule finished about `0.17 BPC` worse than the ascending schedule under long-context evaluation. But the experiment used only one seed, and I later found problems in both the evaluation design and my interpretation of the diagnostic measurements.
+
+In the second iteration, I responded by introducing five paired seeds, shared initialization, matched training-data manifests, fixed evaluation targets, and held-out validation text unseen by every model. The descending disadvantage remained consistent across seeds. At that point, I thought the evidence for an ordering effect had become much stronger.
+
+Reading the literature changed how I interpreted that result. Instead of asking only whether the evidence supported my hypothesis, I began asking what the strongest alternative explanation would be. I then noticed that ascending training ended at `T=256`, descending training ended at `T=32`, and the main evaluation also used `T=256`. The result could therefore reflect recent-context exposure rather than a persistent effect of training order. Differences in optimizer state and the interaction between context length and learning-rate phase were further competing explanations.
+
+To eliminate these alternative explanations, I gave every arm the same final `T=256` recovery stage and asked whether the descending deficit would survive after recent training context was matched. I evaluated all arms at `T∈{32,64,128,256}` throughout recovery, so the answer would not depend on a single evaluation horizon or final checkpoint. I also preregistered the estimands, checkpoints, thresholds, plots, and decision rules before seeing the results.
+
+The model architecture, initialization within each seed, context-specific data draws, total exposure to each context length, tokens per update, optimizer and hyperparameters, global learning-rate schedule, training budget, recovery condition, validation text, evaluation targets, and evaluation panels were held constant. Only the temporal order of the four pre-recovery context blocks varied. Execution order was balanced across seeds with a Latin-square rotation.
+
+Unfortunately, the stronger version of my original hypothesis—a persistent disadvantage caused by descending order—was not supported. The large deficit replicated before recovery, disappeared rapidly once all arms received the same long-context training, and reversed sign at the registered endpoint. I therefore had to revise my interpretation: this pattern is more consistent with recent-context exposure than with persistent path dependence. The final conclusion is therefore: **the large effect of training order did not persist. Final performance was driven mainly by the most recent training context, although a smaller ordering effect cannot yet be ruled out.**
+
+
 ## Abstract
 
 We tested whether the large long-context deficit previously observed after descending context-length training reflects persistent path dependence or a reversible terminal-context effect. Three schedules—ascending (`32→64→128→256`), descending (`256→128→64→32`), and one prespecified nonmonotonic permutation (`64→256→32→128`)—received matched context exposure for 2,000 steps, followed by 500 identical `T=256` recovery steps. Data draws, initialization within seed, model, optimizer, token throughput, evaluation targets, recovery learning rate, and training budget were controlled.

@@ -11,7 +11,7 @@ Execution implementation for the preregistered study:
 training_dynamics_research/recovery_study/
 ├── PREREGISTRATION.md   # Frozen experimental specification & decision rules
 ├── PREREGISTRATION_AMENDMENT_001_FIGURES.md
-├── TECHNICAL_REPORT.md  # Corrected results, interpretation, and provenance
+├── TECHNICAL_REPORT_final.md  # Final results, process, interpretation, and provenance
 ├── config.py            # Global hyperparameters, seeds, and decision thresholds
 ├── schedules.py         # Ascending, descending, and nonmonotonic schedule builders
 ├── manifests.py         # RNG-decoupled scheduled, recovery, & extended batch manifests
@@ -83,4 +83,4 @@ This loads each arm's `checkpoint_step_2500.pt`, preserves Adam moments and RNG 
 ```bash
 python3 -m training_dynamics_research.recovery_study.analyze
 ```
-Outputs the corrected preregistered summary, five tidy tables, the registered audit figures, and the post-results paper figure set under `results/recovery_study/figures/`. The interpretation and exact training/analysis/figure provenance are recorded in `TECHNICAL_REPORT.md`.
+Outputs the corrected preregistered summary, five tidy tables, the registered audit figures, and the post-results paper figure set under `results/recovery_study/figures/`. The interpretation and exact training/analysis/figure provenance are recorded in `TECHNICAL_REPORT_final.md`.

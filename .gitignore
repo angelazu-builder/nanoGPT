@@ -24,3 +24,13 @@ scratch/
 tmp/
 results/recovery_study_smoke/
 *.npz
+
+# LaTeX build intermediates
+*.aux
+*.bbl
+*.blg
+*.log
+
+# Unused ICML template examples
+training_dynamics_research/paper_icml2026/example_paper.*
+training_dynamics_research/paper_icml2026/icml_numpapers.pdf

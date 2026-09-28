@@ -3,7 +3,8 @@
 ## 审计对象
 
 - Repository: `Angela's nanoGPT`
-- 当前主报告: `training_dynamics_research/technical_report.md`
+- 当时审计的主报告（现已归档）: `training_dynamics_research/history/iteration_2_paired_pilot/technical_report_v2_legacy.md`
+- 当前最终报告: `training_dynamics_research/recovery_study/TECHNICAL_REPORT_final.md`
 - 当前核心实验: `experiment_paired.py`
 - 模型与数据: 约 4.8M 参数的 character-level Transformer，Tiny Shakespeare
 - 当前设计: 2,500 steps，4,096 tokens/update，5 paired seeds

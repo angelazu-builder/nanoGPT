@@ -13,8 +13,8 @@
 
 | Version | Date | Status |
 |---------|------|--------|
-| v1 (`technical_report_v1_original.md`) | Sep 20, 2026 | Retracted — contains 5 measurement bugs |
-| v2 (`technical_report.md`, tag `report-v2-corrected-seed42`) | Sep 24, 2026 | Preliminary — single seed, corrected design |
+| v1 (`../iteration_1_exploratory_pilot/technical_report_v1_retracted.md`) | Sep 20, 2026 | Retracted — contains 5 measurement bugs |
+| v2 (this archived file; tag `report-v2-corrected-seed42`) | Sep 24, 2026 | Preliminary — single seed, corrected design |
 | **v3 (this file)** | Sep 27, 2026 | **Final — 5-seed statistical analysis complete** |
 
 ---
@@ -194,4 +194,4 @@ Anti-Curriculum (256→32) is consistently ~0.178 BPC worse than Curriculum acro
 | `results/ce3_paired/seed_N_results.json` | Per-seed per-arm BPC and training logs |
 | `results/ce3_paired/ce3_summary.json` | Aggregated means, stds, t-test results |
 | `results/ce3_run_log.txt` | Full training log |
-| `training_dynamics_research/technical_report_v1_original.md` | Archived original (retracted) report |
+| `training_dynamics_research/history/iteration_1_exploratory_pilot/technical_report_v1_retracted.md` | Archived original (retracted) report |

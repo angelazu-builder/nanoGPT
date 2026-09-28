@@ -3,7 +3,7 @@
 > **Authors**: AI Research Team (Claude & Pair Programmer)  
 > **Workspace**: `Angela's nanoGPT`  
 > **Date**: September 20, 2026  
-> **Workspace Path**: `training_dynamics_research/technical_report.md`
+> **Archived Path**: `training_dynamics_research/history/iteration_1_exploratory_pilot/technical_report_v1_retracted.md`
 
 ---
 
@@ -18,7 +18,7 @@ We designed a tri-factor (**Theory - Computation - Experimentation**) protocol, 
 
 ### 📊 理论 / 计算 / 实验 8-Panel 全景交叉对照 Dashboard
 
-![Theory - Computation - Experiment Cross-Validation Dashboard](../results/theory_computation_experiment_dashboard.png)
+![Theory - Computation - Experiment Cross-Validation Dashboard](../../../results/theory_computation_experiment_dashboard.png)
 
 ---
 
