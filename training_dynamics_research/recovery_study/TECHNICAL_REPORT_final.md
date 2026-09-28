@@ -37,8 +37,8 @@ After matching context exposure, transition structure, training budget, validati
 The primary contrast was
 
 $$
-\Delta^A(k)=\operatorname{BPC}^{A}_{descending,256}(2000+k)
--\operatorname{BPC}^{A}_{ascending,256}(2000+k),
+\Delta^A(k)=\mathrm{BPC}^{A}_{\mathrm{descending},256}(2000+k)
+-\mathrm{BPC}^{A}_{\mathrm{ascending},256}(2000+k),
 $$
 
 measured on the 32-sequence anchor panel at recovery steps `k=0` and `k=500`.
