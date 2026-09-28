@@ -150,7 +150,7 @@ The experiment rejects the simple claim that descending context order leaves a l
 | Formal training code and run artifacts | `30a126cb7fbee5b5d730aeccc6efa33a18cdf4f8` |
 | Corrected analysis code | `82a4f0d5b24d27a6fd66bf3fe1878d6839af0ebd` |
 | Registered figure-generation code | `82a4f0d5b24d27a6fd66bf3fe1878d6839af0ebd` |
-| Post-results paper-figure code | `8e1d7737dc446eebdfeb0302984a05fa4c5a4a6a` |
+| Post-results manuscript-figure code | `688d98ad543bbe5a996511247f742f8b12ca17d0` |
 
 The corrected analysis and figures were generated without rerunning the models:
 
@@ -171,20 +171,36 @@ Primary artifacts:
 
 ## 11. Post-results paper visualization layer
 
-The registered figures above remain the audit layer. A separate presentation layer was created after inspecting the results; it changes no data, estimand, threshold, decision rule, or conclusion. Its purpose is to make the temporal and statistical evidence legible without implying observations that were not collected.
+The registered figures above remain the audit layer. The manuscript layer was created after inspecting the results and changes no data, estimand, threshold, decision rule, or conclusion. The narrative is deliberately hierarchical: rapid reversal is the primary result; the need to combine process, anchor, and multi-horizon measurements is the methodological contribution; horizon dependence is supporting evidence. The nonmonotonic arm remains exploratory and appears only in the appendix. Each figure is exported as a 300-dpi PNG preview and a vector PDF for manuscript use.
 
-| Paper figure | Question answered | Visual contract |
-|---|---|---|
-| `figure_01_recovery_dynamics.png` | How did the descending-minus-ascending gap evolve at each evaluation horizon? | Every measured recovery checkpoint is marked; faint paths are seeds and the heavy path is their mean. `T=256` uses an explicitly labelled independent y-scale because its initial gap is an order of magnitude larger. |
-| `figure_02_primary_endpoint_estimation.png` | What happened to the registered `T=256` anchor endpoint? | The left panel contains endpoints only and states that connecting lines encode seed pairing, not an unobserved trajectory. Separate effect-size panels give the post-recovery residual and pre-to-post reduction their own scales, with raw seeds and 95% t intervals. |
-| `figure_03_horizon_effect_forest.png` | Was the endpoint effect specific to `T=256`? | Raw paired seed effects, means, and 95% t intervals are shown before and after recovery; the post panel includes the registered `±0.02 BPC` practical-removal band. |
-| `figure_04_context_alignment.png` | How quickly did evaluation-horizon dependence collapse? | All measured checkpoints are visible in a full-window panel and an early-recovery zoom; no smoothing or interpolation is used. |
+### Main Figure 1 — Common long-context recovery rapidly reverses the large deficit, but the residual is unresolved
 
-These choices follow three useful conventions from prior work: plot dynamics at the time scale where the transition occurs, as in sequence-length warmup and grokking studies; show raw runs rather than only an aggregate curve; and pair point estimates with uncertainty rather than treating a small number of seeds as a significance contest. Relevant examples are [Li et al., *Sequence Length Warmup for Large Language Model Pretraining*](https://arxiv.org/abs/2108.06084), [Power et al., *Grokking*](https://arxiv.org/abs/2201.02177), [Agarwal et al., *Deep Reinforcement Learning at the Edge of the Statistical Precipice*](https://proceedings.neurips.cc/paper_files/paper/2021/hash/f514cec81cb148559cf475e7426eed5e-Abstract.html), and [Ho et al., *Moving beyond P values: data analysis with estimation graphics*](https://www.nature.com/articles/s41592-019-0470-3).
+**Caption.** Common `T=256` recovery rapidly reverses the descending schedule's long-context deficit, but the experiment does not establish equivalence at the registered endpoint. **(A)** Descending-minus-ascending process-panel BPC at evaluation horizon `T=256` over the common recovery stage; the inset expands the first 50 recovery steps. Pale trajectories are the three paired seeds and the heavy trajectory is their mean. Markers denote measured checkpoints; no smoothing or interpolation is used. Process estimates use the nested 16-sequence panel. **(B)** Registered anchor-panel contrasts before and after recovery, using 32 fixed sequences per arm. Lines connect the same seed and therefore encode pairing, not unmeasured intermediate dynamics; black diamonds are three-seed means and the gray band is the preregistered `±0.02 BPC` practical-removal region. **(C)** Seed-level post-recovery contrasts and their mean with a two-sided 95% Student-t interval across the three paired seeds. Positive values indicate higher BPC for descending than ascending. The mean reverses sign (`−0.0485 BPC`), lies outside the practical-removal band, and its interval crosses zero; the residual sign reversal is therefore unresolved.
 
-Paper-figure artifacts:
+Artifacts: `main_figure_1_primary_recovery.{png,pdf}`
 
-- `results/recovery_study/figures/paper/figure_01_recovery_dynamics.png`
-- `results/recovery_study/figures/paper/figure_02_primary_endpoint_estimation.png`
-- `results/recovery_study/figures/paper/figure_03_horizon_effect_forest.png`
-- `results/recovery_study/figures/paper/figure_04_context_alignment.png`
+### Main Figure 2 — The pre-recovery deficit is specific to long-context evaluation
+
+**Caption.** Horizon-specific descending-minus-ascending anchor effects before and after common recovery. **(A)** Before recovery (`k=0`), the large positive deficit occurs at `T=256`, while shorter-horizon contrasts are small and negative. **(B)** After 500 common `T=256` recovery steps, all four point estimates are modest and negative, and all 95% Student-t intervals cross zero. Circles are paired seed effects (`n=3`), black diamonds are means, and colored bars are two-sided 95% Student-t intervals across seeds. The gray band in panel B is the preregistered `±0.02 BPC` practical-removal region. Panels use independent x-axis ranges to show the much smaller post-recovery effects; comparisons of magnitude should use the numeric axes rather than visual bar length alone.
+
+Artifacts: `main_figure_2_horizon_specificity.{png,pdf}`
+
+### Main Figure 3 — Most evaluation-horizon dependence disappears within 50 recovery steps
+
+**Caption.** Recovery dynamics of the process-panel context-alignment contrast, `Aᴾ(k)=Δᴾ₂₅₆(k)−Δᴾ₃₂(k)`. **(A)** Full 500-step recovery window. **(B)** The first 50 steps, shown on an expanded x-axis. Pale trajectories are paired seeds (`n=3`), heavy trajectories are their means, and markers are measured checkpoints. The contrast falls sharply during the first 10 steps and is approximately `0.05 BPC` by step 50. This supports a terminal-context-sensitive account of the original deficit, but does not isolate optimizer state, representation change, or another unique recovery mechanism.
+
+Artifacts: `main_figure_3_context_alignment.{png,pdf}`
+
+### Appendix Figure A1 — Complete recovery trajectories at all evaluation horizons
+
+**Caption.** Descending-minus-ascending process-panel BPC across all measured recovery checkpoints for `T∈{32,64,128,256}`. Pale trajectories are paired seeds (`n=3`) and heavy trajectories are their means. Panels A–C share a y-axis range; panel D (`T=256`) uses an explicitly labelled independent y-axis because its initial gap is an order of magnitude larger. The shorter-horizon means remain modest throughout recovery, whereas the `T=256` mean crosses zero within 50 steps.
+
+Artifacts: `appendix_figure_A1_all_horizon_trajectories.{png,pdf}`
+
+### Appendix Figure A2 — Exploratory results for one prespecified nonmonotonic permutation
+
+**Caption.** Exploratory process-panel contrasts involving the single prespecified nonmonotonic schedule (`64→256→32→128`) over common recovery at four evaluation horizons. Pink denotes nonmonotonic minus ascending and blue denotes descending minus nonmonotonic; pale trajectories are paired seeds (`n=3`) and heavy trajectories are means. This figure describes one permutation only and must not be generalized to nonmonotonic schedules as a class. It does not enter the primary descending-versus-ascending decision.
+
+Artifacts: `appendix_figure_A2_nonmonotonic_exploratory.{png,pdf}`
+
+The presentation follows useful conventions from prior work: show training dynamics at the time scale of the transition, expose raw runs, define every visual encoding in the caption, and pair point estimates with uncertainty. Relevant examples are [Li et al., *Sequence Length Warmup for Large Language Model Pretraining*](https://arxiv.org/abs/2108.06084), [Power et al., *Grokking*](https://arxiv.org/abs/2201.02177), [Agarwal et al., *Deep Reinforcement Learning at the Edge of the Statistical Precipice*](https://proceedings.neurips.cc/paper_files/paper/2021/hash/f514cec81cb148559cf475e7426eed5e-Abstract.html), and [Ho et al., *Moving beyond P values: data analysis with estimation graphics*](https://www.nature.com/articles/s41592-019-0470-3).
