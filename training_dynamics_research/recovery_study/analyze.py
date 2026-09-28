@@ -40,6 +40,7 @@ from .config import (
 from .core_types import StudyTables
 from .tables import extract_study_tables, export_tidy_csvs
 from .figures import plot_contract_figures
+from .paper_figures import plot_paper_figures
 
 
 def load_all_results(results_dir: str, seeds: Optional[List[int]] = None) -> Tuple[Dict[int, Dict[str, Any]], List[int]]:
@@ -497,6 +498,8 @@ def analyze_recovery_study(
             print(f"Generated contract CSVs in {os.path.join(figures_dir, 'data')}")
             plot_contract_figures(tables, summary, active_seeds, summary["checkpoints"], figures_dir)
             print(f"Generated contract figures in {figures_dir}")
+            plot_paper_figures(tables, summary, active_seeds, summary["checkpoints"], figures_dir)
+            print(f"Generated paper figures in {os.path.join(figures_dir, 'paper')}")
         except Exception as e:
             if allow_partial:
                 print(f"DEBUG: Figure/CSV contract export failed: {e}")

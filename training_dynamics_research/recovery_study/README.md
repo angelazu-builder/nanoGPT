@@ -18,6 +18,7 @@ training_dynamics_research/recovery_study/
 ├── evaluation.py        # Zero-redundancy nested evaluation (process panel + anchor panel)
 ├── runner.py            # Execution runner with rotation, full state ckpts, & extension hook
 ├── analyze.py           # Multi-horizon statistical analysis, transition shock, AUC, & plots
+├── paper_figures.py     # Post-results presentation layer; no new estimands or rules
 ├── test_study.py        # Unit tests covering manifests, schedules, & Case A-E decision rules
 └── README.md            # This documentation
 ```
@@ -33,6 +34,7 @@ results/recovery_study/
 ├── seed_44/{ascending,descending,nonmonotonic}/
 ├── figures/
 │   ├── data/            # Five canonical tidy CSV tables
+│   ├── paper/           # Post-results, publication-oriented figure set
 │   ├── main_01_*.png ... main_05_*.png
 │   └── appendix_A1_*.png ... appendix_A5_*.png
 └── summary.json
@@ -79,4 +81,4 @@ This loads each arm's `checkpoint_step_2500.pt`, preserves Adam moments and RNG 
 ```bash
 python3 -m training_dynamics_research.recovery_study.analyze
 ```
-Outputs the corrected preregistered summary, five tidy tables, and the complete figure set under `results/recovery_study/figures/`. The interpretation and exact training/analysis/figure provenance are recorded in `TECHNICAL_REPORT.md`.
+Outputs the corrected preregistered summary, five tidy tables, the registered audit figures, and the post-results paper figure set under `results/recovery_study/figures/`. The interpretation and exact training/analysis/figure provenance are recorded in `TECHNICAL_REPORT.md`.
