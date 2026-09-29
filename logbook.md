@@ -1013,10 +1013,10 @@ This makes the increasing strength of the controls visible without rewriting the
 
 ### Repair standard
 
-- block math: `$$` on isolated, paired lines;
+- block math: GitHub fenced `math` blocks, used to avoid parsing conflicts between multiline equations and Markdown headings/lists;
 - inline math: single-dollar delimiters;
 - unsupported `operatorname` macro: prohibited in Markdown documents;
-- fenced code and LaTeX `.tex` source: excluded from the mechanical rewrite.
+- ordinary fenced code and LaTeX `.tex` source: excluded from the mechanical rewrite.
 
 ### Scope
 
@@ -1030,4 +1030,4 @@ Audited every Git-tracked Markdown file, not only the reported preregistration. 
 - the original Iteration 1 proposal;
 - the theoretical handout.
 
-The final code-fence-aware audit found zero legacy block or inline delimiters, zero non-isolated or unpaired block delimiters, zero indentation mismatches, and zero uses of the unsupported `operatorname` macro outside literal history notes.
+The final code-fence-aware audit found zero legacy block or inline delimiters, zero remaining block-dollar formulas, balanced math fences, and zero uses of the unsupported `operatorname` macro inside rendered mathematics. The target GitHub preregistration page was then visually checked after push.

@@ -20,14 +20,14 @@ Shortformer 让不同模型先接受不同长度的 early-stage training，但�
 
 这将：
 
-$$
+```math
 \text{early training path}
-$$
+```
 与：
 
-$$
+```math
 \text{final task/context mismatch}
-$$
+```
 分开。
 
 ### 当前差距
@@ -50,7 +50,7 @@ $$
 
 它尝试验证机制链：
 
-$$
+```math
 \text{schedule}
 \rightarrow
 \text{optimizer/statistical state}
@@ -58,7 +58,7 @@ $$
 \text{stability}
 \rightarrow
 \text{performance}.
-$$
+```
 ### 当前差距
 
 当前报告将 anti degradation 解释为长程遗忘或低 LR 下无法重新适应，但没有操纵 recovery、LR trajectory 或 optimizer state 来区分这些解释。
@@ -79,9 +79,9 @@ $$
 
 它试图估计：
 
-$$
+```math
 Y(\text{same content, long})-Y(\text{same content, short}),
-$$
+```
 而不是把长度与数据选择混为一谈。
 
 ### 当前差距
@@ -131,13 +131,13 @@ $$
 
 改变的是可见 context，target token 和位置保持不变：
 
-$$
+```math
 \mathrm{LSD}(x_i)
 =
 \log P(x_i\mid c_{long})
 -
 \log P(x_i\mid c_{short}).
-$$
+```
 ### 当前差距
 
 repo 已经修复“不同 horizon 评分不同 target positions”的错误，但 report 仍主要使用整体平均 BPC，没有分析哪些 tokens 真正依赖额外 context。

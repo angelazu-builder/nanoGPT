@@ -75,10 +75,9 @@
 * **单步 Token 吞吐**: 严格保持每步 $B \times T = 4,096$ tokens。
 
 #### Batch 与 Sequence 配对表
-$$
+```math
 \text{Context Length } T \times \text{Batch Size } B = 4,096 \text{ tokens/update}
-$$
-
+```
 | Context Length ($T$) | Batch Size ($B$) | Single Update Tokens |
 | :---: | :---: | :---: |
 | **32** | 128 | 4,096 |

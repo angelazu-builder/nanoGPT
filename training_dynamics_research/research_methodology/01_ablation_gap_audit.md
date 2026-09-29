@@ -20,10 +20,10 @@
 3. 对 curriculum、shuffled 和 anti-curriculum 固定了 context-length histogram。
 4. 固定每一步的 token throughput：
 
-   $$
+   ```math
    B\times T=4096.
 
-   $$
+   ```
 5. 从单 seed 扩展到了 5 paired seeds，并公开逐 seed BPC。
 6. 主动撤回了受 resubstitution bias 影响的 corpus entropy 结论。
 7. 加入 fixed-long baseline，证明复杂 schedule 至少没有显示出明显工程优势。
@@ -82,9 +82,9 @@
 
 若项目定义：
 
-$$
+```math
 |\Delta \mathrm{BPC}|<0.01
-$$
+```
 才算 practically equivalent，则应使用 TOST 或 paired confidence interval。seed 数不足时应写：
 
 > No statistically detectable difference was found; the estimate remains uncertain.
@@ -93,18 +93,18 @@ $$
 
 报告提出 anti-curriculum 可能“遗忘长程结构”，但目前只观测到：
 
-$$
+```math
 \text{schedule}\rightarrow\text{final BPC difference}.
-$$
+```
 尚未通过 intervention 证明：
 
-$$
+```math
 \text{short final context}
 \rightarrow
 \text{forgetting or optimizer mismatch}
 \rightarrow
 \text{BPC degradation}.
-$$
+```
 attention entropy、effective rank 和 initialization gradient variance 不能单独证明这条机制链。最有信息量的第一步不是增加更多诊断，而是加入共同 recovery；只有 gap 仍存在时，才研究 optimizer-state reset 等机制。
 
 ### 5. 训练轨迹没有成为主要证据
@@ -129,11 +129,11 @@ attention entropy、effective rank 和 initialization gradient variance 不能�
 
 固定最后 32 个 target positions 是正确修复，但整体 BPC 仍可能淹没少数真正依赖长 context 的 token。应对完全相同的 target token 计算：
 
-$$
+```math
 C_i=
 -\log_2P(x_i\mid T=32)
 +\log_2P(x_i\mid T=256).
-$$
+```
 并分别报告全部 tokens 与 top context-sensitive tokens 上的表现。
 
 ### 7. Manifest 的描述不准确

@@ -28,13 +28,13 @@ The recovery study does not assume that recency disappears after a fixed number 
 
 For recovery step $k$, define:
 
-$$
+```math
 \Delta(k)
 =
 \mathrm{BPC}_{descending,\,2000+k}
 -
 \mathrm{BPC}_{ascending,\,2000+k}.
-$$
+```
 Two nested validation estimators are used:
 
 - $\Delta^{P}(k)$: the descending-minus-ascending difference on the fixed 16-sequence process panel, used for trajectories and plateau tests;
@@ -42,36 +42,36 @@ Two nested validation estimators are used:
 
 The main anchor checkpoints are:
 
-$$
+```math
 \Delta_{pre}=\Delta^{A}(0)
-$$
+```
 and:
 
-$$
+```math
 \Delta_{post}=\Delta^{A}(500).
-$$
+```
 Define absolute recovery:
 
-$$
+```math
 G_{recovered}=\Delta^{A}(0)-\Delta^{A}(500).
-$$
+```
 Only when:
 
-$$
+```math
 |\Delta^{A}(0)|\ge 0.02\ \mathrm{BPC}
-$$
+```
 may the recovery ratio be interpreted:
 
-$$
+```math
 R=\frac{\Delta^{A}(500)}{\Delta^{A}(0)}.
-$$
+```
 ### Primary hypothesis
 
 The original descending degradation is mainly a reversible terminal-context/recency effect:
 
-$$
+```math
 R<0.25.
-$$
+```
 This means at least 75% of the pre-recovery gap is removed during matched long-context recovery.
 
 The ratio describes the fraction recovered but does not by itself determine stop/go. A small ratio and a practically meaningful absolute residual can coexist; absolute anchor residuals and process-panel plateau behavior govern follow-up decisions.
@@ -84,10 +84,10 @@ Evidence is considered sufficient to justify a subsequent mechanism experiment o
 2. all three paired seeds have $\Delta^{A}(500)>0$;
 3. the mean gap has approximately plateaued:
 
-   $$
+   ```math
    |\Delta^{P}(500)-\Delta^{P}(250)|<0.025\ \mathrm{BPC};
 
-   $$
+   ```
 4. no run failed validity or reproducibility checks.
 
 This is evidence for a **persistent-effect candidate**, not proof of a permanent or unique mechanism.
@@ -106,18 +106,18 @@ If $|\Delta^{A}(0)|<0.02$, the denominator of the recovery ratio is too small fo
 
 ### 0.03 BPC: additional-compute threshold
 
-$$
+```math
 2^{0.03}\approx1.021.
-$$
+```
 Thus 0.03 BPC corresponds to roughly a 2.1% perplexity ratio. It is the minimum residual effect considered large enough to justify spending additional compute on a mechanism study. It is not a significance boundary or a threshold derived from prior literature.
 
 ### 0.025 BPC over 250 steps: late-recovery slope threshold
 
 The compact evaluation design observes late recovery at relative steps 250 and 500. The original slope criterion of 0.01 BPC per 100 recovery steps therefore scales to:
 
-$$
+```math
 0.01\times\frac{250}{100}=0.025\ \mathrm{BPC}.
-$$
+```
 A decrease greater than 0.025 BPC over the final 250-step window indicates that recovery is still materially progressing. An absolute change below 0.025 BPC is treated as an approximate plateau for the stop/go decision. The same 250-step window and threshold apply at extension steps 750–1000.
 
 ## 4. Formal experimental arms
@@ -178,9 +178,9 @@ Across the three formal arms, hold constant:
 
 The intended treatment is:
 
-$$
+```math
 \boxed{\text{the temporal permutation of the four pre-recovery context blocks}}.
-$$
+```
 Because context blocks occur at different global steps, the treatment necessarily includes their interaction with model state, optimizer history, and the fixed global learning-rate trajectory. The estimand is therefore the total block-order effect under this training policy, not an abstract order effect independent of learning rate.
 
 ### Remaining transition asymmetry
@@ -197,9 +197,9 @@ This is intentional. The recovery curve measures how effects associated with the
 
 Hold:
 
-$$
+```math
 B\times T=4096.
-$$
+```
 | Context $T$ | Batch size $B$ |
 |---:|---:|
 | 32 | 128 |
@@ -209,9 +209,9 @@ $$
 
 Every arm sees:
 
-$$
+```math
 2500\times4096=10{,}240{,}000
-$$
+```
 target tokens.
 
 Token matching is not compute matching. Record measured wall-clock time, seconds per step, and peak MPS memory.
@@ -423,14 +423,14 @@ At global steps 2000 and 2500, score identical target positions with context hor
 
 For target token $i$, compute:
 
-$$
+```math
 \ell_i(T)=-\log_2P(x_i\mid c_T)
-$$
+```
 and:
 
-$$
+```math
 C_i=\ell_i(32)-\ell_i(256).
-$$
+```
 Report mean and median $C_i$, the fraction with $C_i>0.1$ bits, BPC on the top 10% most context-sensitive targets, and the paired ascending–descending difference on the same targets.
 
 The target subset must be defined without selecting whichever subset maximizes the reported arm difference. Prefer a treatment-blind aggregate or an external/reference model.
@@ -458,22 +458,22 @@ The primary confirmatory contrast is always descending minus ascending.
 
 Exploratory contrasts may include:
 
-$$
+```math
 \Delta_{N-A}(k)
 =
 \mathrm{BPC}_{nonmonotonic}(k)
 -
 \mathrm{BPC}_{ascending}(k)
-$$
+```
 and:
 
-$$
+```math
 \Delta_{D-N}(k)
 =
 \mathrm{BPC}_{descending}(k)
 -
 \mathrm{BPC}_{nonmonotonic}(k).
-$$
+```
 Rules:
 
 - show all raw seeds and trajectories;

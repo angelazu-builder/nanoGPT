@@ -36,21 +36,19 @@ After matching context exposure, transition structure, training budget, validati
 
 The primary contrast was
 
-$$
+```math
 \Delta^A(k)=\mathrm{BPC}^{A}_{\mathrm{descending},256}(2000+k)
 -\mathrm{BPC}^{A}_{\mathrm{ascending},256}(2000+k),
-$$
-
+```
 measured on the 32-sequence anchor panel at recovery steps `k=0` and `k=500`.
 
 ## 2. Hypotheses and decision rules
 
 The quantitative hypothesis was that common `T=256` recovery would remove at least 75% of the pre-recovery gap:
 
-$$
+```math
 R=\frac{\Delta^A(500)}{\Delta^A(0)}<0.25.
-$$
-
+```
 The ratio was descriptive and could not override the absolute residual rules:
 
 - Case A: `|mean Δᴬ(0)| < 0.02 BPC` — the original gap did not replicate.
@@ -122,10 +120,9 @@ The large pre-recovery deficit was specific to evaluation at `T=256`; it was not
 
 On the 16-sequence process panel, the mean `T=256` gap fell from `+0.8097 BPC` at `k=0` to `+0.0719` at `k=10`, crossed zero by `k=50`, and ended at `−0.0195` at `k=500`. The context-alignment contrast
 
-$$
+```math
 A^P(k)=\Delta_{256}^P(k)-\Delta_{32}^P(k)
-$$
-
+```
 also collapsed rapidly, showing that the initial arm difference became much less dependent on evaluation horizon during common long-context recovery.
 
 The anchor endpoints show that this reversal was driven mainly by recovery of the descending arm, not by comparable deterioration of the ascending arm. At `T=256`, mean descending BPC improved from `2.9980` to `2.2345` (`−0.7635 BPC`), while mean ascending BPC changed from `2.2410` to `2.2830` (`+0.0421 BPC`). Thus the large original contrast was not removed merely because the reference arm drifted toward the descending model.

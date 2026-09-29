@@ -60,9 +60,9 @@ If this is your first CS course, here are the essential building blocks:
 
 > [!TIP]
 > **Theoretical Loss Baseline**: If a model makes completely random guesses across 65 characters, the expected initial loss is:
-> $$
+> ```math
 > \mathcal{L}_{\text{initial}} = -\ln\left(\frac{1}{65}\right) \approx 4.17
-> $$
+> ```
 > Any loss score lower than $4.17$ means your model is learning pattern structure!
 
 ---
@@ -124,10 +124,9 @@ To predict token $t$, we want information from previous tokens $0, 1, \dots, t-1
 
 To prevent looking into the future (causal mask), we use a lower-triangular matrix:
 
-$$
+```math
 \text{Masked Average}: \quad A_{ij} = \begin{cases} \frac{1}{i+1} & \text{if } j \le i \\ 0 & \text{if } j > i \end{cases}
-$$
-
+```
 ```python
 # Triangular averaging in PyTorch
 wei = torch.tril(torch.ones(T, T))
@@ -155,10 +154,9 @@ Token X (B, T, C)
 ```
 
 #### Attention Formula
-$$
+```math
 W_{att} = \text{Softmax}\left( \frac{Q K^T}{\sqrt{d_k}} + \text{Mask} \right) V
-$$
-
+```
 ```python
 # Scaled Dot-Product Self-Attention
 k = self.key(x)   # (B, T, head_size)
@@ -186,18 +184,17 @@ out = wei @ v    # (B, T, head_size)
 
 #### 1. Multi-Head Attention
 Instead of one big attention head, we run $h$ smaller heads in parallel and concatenate their results:
-$$
+```math
 \text{MultiHead}(X) = \text{Concat}(\text{head}_1, \text{head}_2, \dots, \text{head}_h) W^O
-$$
+```
 *Intuition*: Different heads focus on different relationships (e.g., Head 1 tracks grammar/syntax, Head 2 tracks noun-pronoun references, Head 3 tracks punctuation).
 
 #### 2. Feed-Forward Network (FFN)
 After tokens gather context via attention, they need time to "think" individually. A simple 2-layer MLP is applied to every token position independently:
 
-$$
+```math
 \text{FFN}(x) = \text{ReLU}(x W_1 + b_1) W_2 + b_2
-$$
-
+```
 ---
 
 ### Stage 5: Deep Transformer (Residuals & LayerNorm)
