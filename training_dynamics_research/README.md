@@ -36,7 +36,7 @@ These records preserve the initial single-seed experiment and the measurement pr
 
 ### 2. Paired pilot
 
-These records contain the five-seed paired experiment, its corrected analysis, and the remaining terminal-context confound.
+Relative to Iteration 1, this study added five paired seeds, shared initialization, context-specific data manifests, held-out validation text, fixed target positions, and corrected same-target evaluation. These changes made the terminal deficit reproducible rather than anecdotal, but training order remained confounded with the final context seen by each model.
 
 - [Reconstructed design, pairing, and controls](history/iteration_2_paired_pilot/PREREGISTRATION_RECONSTRUCTED.md) — retrospective, not a prospective preregistration.
 - [Corrected paired-pilot technical report](history/iteration_2_paired_pilot/technical_report_v3_paired_pilot.md).
@@ -45,7 +45,7 @@ These records contain the five-seed paired experiment, its corrected analysis, a
 
 ### 3. Recovery study
 
-These records contain the prospective design, formal run artifacts, complete preregistered figure set, and final interpretation.
+Relative to Iteration 2, this study added matched block permutations followed by a common `T=256` recovery stage, plus four-horizon process and anchor panels measured across 17 checkpoints. Preregistered estimands, thresholds, decision rules, and figures turned the terminal comparison into a direct test of whether the deficit persisted after recent training context was matched.
 
 - [Recovery-study implementation and figure gallery](recovery_study/README.md#preregistered-figure-gallery).
 - [Prospective preregistration](recovery_study/PREREGISTRATION.md) — setup, held constants, estimands, and decision rules frozen before formal training.
