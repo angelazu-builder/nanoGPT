@@ -10,7 +10,7 @@ This directory records how an initially broad curriculum-learning question becam
 | 2. Paired pilot | Does the deficit survive corrected measurement? | Five paired seeds, shared initialization and data manifests, fixed held-out targets | The descending terminal deficit replicated; curriculum showed no detectable advantage over shuffled or fixed-long. Terminal context remained confounded with order. |
 | 3. Recovery study | Is the deficit persistent under a common long-context condition? | Matched block permutations, common `T=256` recovery, multi-horizon process and anchor panels, preregistered decisions | **Large deficit reversed; residual sign reversal unresolved.** |
 
-This history matters. The current conclusion is not that curriculum is universally better, that ordering never matters, or that recency has been uniquely identified.
+The conclusion is that **the large effect of training order did not persist. Final performance was driven mainly by the most recent training context, although a smaller ordering effect cannot yet be ruled out.**
 
 ## Final deliverables
 
