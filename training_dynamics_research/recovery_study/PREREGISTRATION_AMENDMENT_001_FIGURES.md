@@ -129,26 +129,24 @@ seed × arm × anchor checkpoint × horizon × validation sequence
 
 Contains the prespecified paired contrasts:
 
-\[
+$$
 \Delta_h^P(k)
 =
 \mathrm{BPC}_{descending,h}^{P}(2000+k)
 -
 \mathrm{BPC}_{ascending,h}^{P}(2000+k).
-\]
-
+$$
 ### `figures/data/transition_shocks.csv`
 
 Contains:
 
-\[
+$$
 S_{a,h,t}
 =
 \mathrm{BPC}_{a,h}^{P}(t+1)
 -
 \mathrm{BPC}_{a,h}^{P}(t)
-\]
-
+$$
 for transitions `500→501`, `1000→1001`, `1500→1501`, and `2000→2001`.
 
 ## 3. General plotting policy
@@ -225,14 +223,13 @@ figures/main_02_recovery_gap_by_horizon.png
 
 For recovery checkpoints, compute:
 
-\[
+$$
 \Delta_h^P(k)
 =
 \mathrm{BPC}_{descending,h}^{P}(2000+k)
 -
 \mathrm{BPC}_{ascending,h}^{P}(2000+k).
-\]
-
+$$
 Plot:
 
 - x-axis: recovery step `k`;
@@ -294,14 +291,13 @@ figures/main_05_pre_post_change_heatmap.png
 
 For arm `a` and horizon `h`, compute:
 
-\[
+$$
 \Delta\mathrm{BPC}_{a,h}
 =
 \mathrm{BPC}_{a,h}^{A}(2500)
 -
 \mathrm{BPC}_{a,h}^{A}(2000).
-\]
-
+$$
 Matrix:
 
 ```text
@@ -377,12 +373,11 @@ figures/appendix_A3_paired_seed_endpoints.png
 
 For each seed, show paired values of:
 
-\[
+$$
 \Delta^A(0)
 \quad\text{and}\quad
 \Delta^A(500).
-\]
-
+$$
 Connect each seed's two values with a line. Overlay the mean only as a secondary marker.
 
 Purpose: expose direction consistency and prevent the 3-seed mean from hiding heterogeneous responses.
@@ -399,14 +394,13 @@ figures/appendix_A4_context_alignment.png
 
 Define:
 
-\[
+$$
 A^P(k)
 =
 \Delta_{256}^P(k)
 -
 \Delta_{32}^P(k).
-\]
-
+$$
 Plot individual seeds and the 3-seed mean over recovery checkpoints.
 
 Purpose: show whether the descending-versus-ascending difference becomes less dependent on evaluation horizon during common recovery.
@@ -423,24 +417,22 @@ figures/appendix_A5_nonmonotonic_exploratory.png
 
 Compute:
 
-\[
+$$
 \Delta_{N-A,h}^{P}(k)
 =
 \mathrm{BPC}_{nonmonotonic,h}^{P}(k)
 -
 \mathrm{BPC}_{ascending,h}^{P}(k)
-\]
-
+$$
 and:
 
-\[
+$$
 \Delta_{D-N,h}^{P}(k)
 =
 \mathrm{BPC}_{descending,h}^{P}(k)
 -
 \mathrm{BPC}_{nonmonotonic,h}^{P}(k).
-\]
-
+$$
 The title and caption must contain:
 
 ```text
@@ -461,7 +453,7 @@ If the preregistered extension is triggered:
   figures/appendix_A6_extension_anchor_step3000.png
   ```
 
-- Appendix Figure A3 adds \(\Delta^A(1000)\) as a third paired point;
+- Appendix Figure A3 adds $\Delta^A(1000)$ as a third paired point;
 - Appendix Figure A4 extends through `k=1000`;
 - do not remove the step-2500 results after observing the extension.
 

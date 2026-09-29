@@ -1004,3 +1004,30 @@ AUC, transition-shock, and per-target sensitivity outputs remain available in fo
 - Iteration 3 added common long-context recovery, multi-horizon evaluation, nested process/anchor panels, execution-order rotation, formal completeness gates, and prospective decision rules.
 
 This makes the increasing strength of the controls visible without rewriting the first two iterations as more rigorous than they actually were.
+
+---
+
+## Phase 56 — Repository-Wide Markdown Math Rendering Audit (2026-09-29)
+
+**Trigger**: GitHub rendered formulas in `recovery_study/PREREGISTRATION.md` as raw text because the document still used incompatible Markdown math delimiters.
+
+### Repair standard
+
+- block math: `$$` on isolated, paired lines;
+- inline math: single-dollar delimiters;
+- unsupported `operatorname` macro: prohibited in Markdown documents;
+- fenced code and LaTeX `.tex` source: excluded from the mechanical rewrite.
+
+### Scope
+
+Audited every Git-tracked Markdown file, not only the reported preregistration. Repaired eight documents spanning:
+
+- the recovery preregistration;
+- the preregistered figure amendment;
+- the recovery-study plan;
+- methodology and ablation notes;
+- the rigorous-ablation skill;
+- the original Iteration 1 proposal;
+- the theoretical handout.
+
+The final code-fence-aware audit found zero legacy block or inline delimiters, zero non-isolated or unpaired block delimiters, zero indentation mismatches, and zero uses of the unsupported `operatorname` macro outside literal history notes.

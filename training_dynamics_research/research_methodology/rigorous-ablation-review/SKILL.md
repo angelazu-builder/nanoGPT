@@ -11,10 +11,9 @@ Use this skill to decide whether an ML experiment isolates the claimed causal va
 
 Write the central claim as an estimand before judging implementation. Prefer a contrast such as:
 
-\[
+$$
 \Delta=E[Y\mid A]-E[Y\mid B].
-\]
-
+$$
 State exactly what differs between `A` and `B`. If more than one scientifically meaningful variable differs, do not call the comparison a pure ablation.
 
 Distinguish:
@@ -94,10 +93,9 @@ For low-compute pilots, allow few seeds to screen for large, directionally consi
 
 An observed correlation or diagnostic is not a mechanism. Require a chain of evidence:
 
-\[
+$$
 \text{treatment}\rightarrow\text{mediator}\rightarrow\text{outcome}
-\]
-
+$$
 and, where feasible, an intervention on the proposed mediator. Test the cheapest decisive alternative explanation first. Do not expand into a large factorial experiment until the primary effect survives basic controls.
 
 ### 8. Claim calibration
