@@ -23,6 +23,7 @@ The conclusion is that **the large effect of training order did not persist. Fin
 
 ## Final deliverables
 
+- [Concise technical report](training_dynamics_research/recovery_study/TECHNICAL_REPORT_CONCISE_final.md) — 2–4 page account of the question, controlled test, core result, revised interpretation, and remaining unknowns.
 - [Final technical report](training_dynamics_research/recovery_study/TECHNICAL_REPORT_final.md) — full process, audit trail, failures, registered analysis, results, and remaining unknowns.
 - [Final paper source](training_dynamics_research/paper_icml2026/paper_final.tex) — named ICML-style preprint.
 - [Final paper PDF](output/pdf/context_order_recovery_icml2026_final.pdf).
