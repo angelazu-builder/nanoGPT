@@ -3,7 +3,7 @@
 Execution implementation for the preregistered study:
 `training_dynamics_research/recovery_study/PREREGISTRATION.md` (Frozen commit: `f1bf7b7`).
 
-Start with the [concise technical report](TECHNICAL_REPORT_CONCISE_final.md) for the question, controlled test, core result, revised interpretation, and remaining unknowns. The [complete technical report](TECHNICAL_REPORT_final.md) preserves the full audit trail and figure set.
+Start with the [concise illustrated PDF](TECHNICAL_REPORT_CONCISE_final.pdf) for the three-iteration research narrative, controlled test, revised interpretation, and remaining unknowns. Its [Markdown companion](TECHNICAL_REPORT_CONCISE_final.md) is also available. The [complete technical report](TECHNICAL_REPORT_final.md) preserves the full audit trail and figure set.
 
 ---
 
@@ -13,6 +13,7 @@ Start with the [concise technical report](TECHNICAL_REPORT_CONCISE_final.md) for
 training_dynamics_research/recovery_study/
 ├── PREREGISTRATION.md   # Frozen experimental specification & decision rules
 ├── PREREGISTRATION_AMENDMENT_001_FIGURES.md
+├── TECHNICAL_REPORT_CONCISE_final.pdf # Four-page illustrated report
 ├── TECHNICAL_REPORT_CONCISE_final.md  # 2–4 page scientific account
 ├── TECHNICAL_REPORT_final.md  # Final results, process, interpretation, and provenance
 ├── config.py            # Global hyperparameters, seeds, and decision thresholds
