@@ -82,12 +82,7 @@ Evidence is considered sufficient to justify a subsequent mechanism experiment o
 
 1. mean $\Delta^{A}(500)>0.03$ BPC;
 2. all three paired seeds have $\Delta^{A}(500)>0$;
-3. the mean gap has approximately plateaued:
-
-   ```math
-   |\Delta^{P}(500)-\Delta^{P}(250)|<0.025\ \mathrm{BPC};
-
-   ```
+3. the mean gap has approximately plateaued: $|\Delta^{P}(500)-\Delta^{P}(250)|<0.025\ \mathrm{BPC}$;
 4. no run failed validity or reproducibility checks.
 
 This is evidence for a **persistent-effect candidate**, not proof of a permanent or unique mechanism.

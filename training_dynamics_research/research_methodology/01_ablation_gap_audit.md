@@ -18,12 +18,7 @@
 1. 修复了 evaluation 时不同 context horizon 评分不同 target positions 的问题。
 2. 在同一个 seed 内共享模型初始化和预生成的数据 draw manifest。
 3. 对 curriculum、shuffled 和 anti-curriculum 固定了 context-length histogram。
-4. 固定每一步的 token throughput：
-
-   ```math
-   B\times T=4096.
-
-   ```
+4. 固定每一步的 token throughput：$B\times T=4096$。
 5. 从单 seed 扩展到了 5 paired seeds，并公开逐 seed BPC。
 6. 主动撤回了受 resubstitution bias 影响的 corpus entropy 结论。
 7. 加入 fixed-long baseline，证明复杂 schedule 至少没有显示出明显工程优势。
